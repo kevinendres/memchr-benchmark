@@ -16,25 +16,26 @@ char random_char() {
 int main (int argc, char **argv) {
     //seed randomization and inits/decs
     srand(time(NULL));
-    int buffer_size = argv[1];
+    int buffer_size = BUFFER_SIZE;
     char* mem_block = (char*) malloc(buffer_size);
-    char character;
-    char search_char = random_char(); 
+    char fill_character = MEM_FILLER;
+    char search_char = SEARCH_STR; 
     struct timespec start, end;
     long elapsed_time;
 
 
-    //fill memory with random characters
+    //fill memory, set last byte to target
     for(int i = 0; i < buffer_size; i++) {
-        character = random_char();
-        *( mem_block + i ) = character;
+        *( mem_block + i ) = fill_character;
     }
+    *( mem_block + buffer_size - 1) = search_char;
 
     //measure
     clock_gettime(CLOCK_MONOTONIC, &start);
     memchr(mem_block, search_char, buffer_size);
     clock_gettime(CLOCK_MONOTONIC, &end);
     elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
+    printf("%ld", elapsed_time);
 
     free(mem_block);
     return elapsed_time;
