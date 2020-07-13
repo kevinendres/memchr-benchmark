@@ -1,5 +1,6 @@
 import subprocess
 import shlex
+import json
 
 #### Prepare input (set variables, ingest C code, etc)
 #### run code repeatedly (store data in list/file/variable)
@@ -42,22 +43,27 @@ def compile(c_file=benchmark_c_file, buffer_size=BUFFER_SIZE, search_str=SEARCH_
 compile()
 c_executable = "./memchr_bench"
 
-results = list()
-
+# Experiment loop variables
+times = list()
 i = 0
 repetitions = 10
 
+# Experiment loop
 print("beginning loop")
 while (i < repetitions):
     output = subprocess.run(c_executable, capture_output=True)
     output = int(output.stdout.decode("ascii"))
-    results.append(output)
+    times.append(output)
     print(output)
     i += 1
     print("loop " + str(i) + " is complete")
 
-leng = len(results)
-summ = sum(results)
-mean = summ / leng
+# output processing
+results_sum = sum(times)
+mean = results_sum / repetitions
+results_json = '''{{"mean time": {}, "repetitions": {}, "run times": {} }}'''.format(mean, repetitions, json.dumps(times))
 
-print("Mean is {}. Calculated by sum: {} dividided by length: {}".format(mean, summ, leng))
+with open('results_log.json', 'x') as outfile:
+    json.dump(results_json, outfile)
+
+print("Mean is {}. Calculated by sum: {} dividided by repetitions: {}".format(mean, results_sum, repetitions))
