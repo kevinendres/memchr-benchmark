@@ -26,7 +26,7 @@ for exe in executables:
 
 # output processing
 json_results = dict()
-for i, times in enumarate(execution_times):
+for i, times in enumerate(execution_times):
     min_time = min(times)
     max_time = max(times)
     mean_time = statistics.mean(times)
@@ -34,7 +34,7 @@ for i, times in enumarate(execution_times):
     std_dev = statistics.stdev(times) 
     time_stamp = datetime.datetime.now().replace(microsecond=0).isoformat()
     json_results[executables[i]] = { "min" : min_time, "max" : max_time, "mean" : mean_time,\
-            "median" : median, "standard deviation" : std_dev, "time stamp" : time_stamp }
+            "median" : median_time, "standard deviation" : std_dev, "time stamp" : time_stamp }
     
 with open('results.json', 'a') as outfile:
     json.dump(json_results, outfile)
