@@ -13,8 +13,8 @@
 # define SEARCH_STR 0x41
 #endif
 
-#ifndef MEMDEF
-# define MEMDEF
+#ifndef __FUNC_CALL__
+# define __FUNC_CALL__ memchr
 #endif
 
 #include <stdio.h>
