@@ -6,8 +6,11 @@ CFLAGS += -march=native
 AVX = -D__FUNC_CALL__="_memchr_avx2"
 SSE = -D__FUNC_CALL__="_memchr"
 
+all : memchr_sse memchr_avx2
+.PHONY : all
+
 memchr_sse: memchr.o memchr_main.c
 	$(CC) $(CFLAGS) -o memchr_sse memchr.o memchr_main.c $(SSE)
 	
-# memchr_avx2: memchr-avx2.o memchr_main.c
-# 	$(CC) $(CFLAGS) -o memchr_avx2 memchr-avx2.o memchr_main.c $(AVX) 
+memchr_avx2: memchr-avx2.o memchr_main.c
+	$(CC) $(CFLAGS) -o memchr_avx2 memchr-avx2.o memchr_main.c $(AVX) 
