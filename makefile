@@ -14,3 +14,7 @@ memchr_sse: memchr.o memchr_main.c
 	
 memchr_avx2: memchr-avx2.o memchr_main.c
 	$(CC) $(CFLAGS) -o memchr_avx2 memchr-avx2.o memchr_main.c $(AVX) 
+
+.PHONY : clean
+clean : 
+	rm -f memchr_avx2 memchr_sse
