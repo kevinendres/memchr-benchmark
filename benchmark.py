@@ -14,10 +14,11 @@ execution_times = list()
 # Experiment loop
 for exe in executables:
     i = 0
+    path_exe = "./" + exe
     times = list()
     print("beginning loop")
     while (i < repetitions):
-        output = subprocess.run(exe, capture_output=True)
+        output = subprocess.run(path_exe, capture_output=True)
         output = int(output.stdout.decode("ascii"))
         times.append(output)
         print(i)
