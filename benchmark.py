@@ -2,6 +2,7 @@ import subprocess
 import json
 import statistics
 import datetime
+import csv
 
 avx2_exe = "memchr_avx2"
 sse_exe = "memchr_sse"
@@ -26,7 +27,6 @@ for exe in executables:
     execution_times.append(times)
 
 # output processing
-json_results = dict()
 for i, times in enumerate(execution_times):
     min_time = min(times)
     max_time = max(times)
@@ -34,10 +34,13 @@ for i, times in enumerate(execution_times):
     median_time = statistics.median(times)
     std_dev = statistics.stdev(times) 
     time_stamp = datetime.datetime.now().replace(microsecond=0).isoformat()
-    json_results[executables[i]] = { "min" : min_time, "max" : max_time, "mean" : mean_time,\
-            "median" : median_time, "standard deviation" : std_dev, "time stamp" : time_stamp }
+    exe = executables[i]
     
-with open('results.json', 'a') as outfile:
-    json.dump(json_results, outfile)
+with open('results.csv', 'a', newline='') as csv_file:
+    fields = ["Executable", "Min", "Max", "Mean", "Median", "Std. Deviation"]
+    csv_writer = csv.DictWriter(csv_file, fieldnames=fields)
+    csv_writer.writerow({ "Executable" : exe, "min" : min_time, "max" : max_time, "mean" : mean_time,\
+            "median" : median_time, "standard deviation" : std_dev, "time stamp" : time_stamp })
+
 
 # data processing
