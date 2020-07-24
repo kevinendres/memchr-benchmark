@@ -4,5 +4,5 @@ void* MEMCHR_DEF(void const *s, int c, int n) {
         if (*i == c)
             return i;
     }
-    return NULL;
+    return 0;
 }
