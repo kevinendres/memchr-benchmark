@@ -1,6 +1,4 @@
 *.o
 *.so
 *.a
-*.S
 *.out
-memchar_bench
