@@ -6,10 +6,16 @@ import csv
 
 avx2_exe = "memchr_avx2"
 sse_exe = "memchr_sse"
-executables = [avx2_exe, sse_exe]
+glibc_exe = "memchr_glibc"
+simple_exe = "memchr_simple"
+executables = [avx2_exe, sse_exe, glibc_exe, simple_exe]
+optimizations = list("_O", "_O2", "_O3")
+for exe in (glibc_exe, simple_exe):
+    for i in optimizations:
+        executables.append(exe+i)
 
 # Experiment loop variables
-repetitions = 1000
+repetitions = 3
 execution_times = list()
 
 # Experiment loop
