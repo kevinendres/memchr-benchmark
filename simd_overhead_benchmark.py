@@ -5,13 +5,7 @@ import csv
 
 avx2_exe = "memchr_avx2"
 sse_exe = "memchr_sse"
-glibc_exe = "memchr_glibc"
-simple_exe = "memchr_simple"
-executables = [avx2_exe, sse_exe, glibc_exe, simple_exe]
-optimizations = ["_O", "_O2", "_O3"]
-for exe in [glibc_exe, simple_exe]:
-    for i in optimizations:
-        executables.append(exe+i)
+executables = [avx2_exe, sse_exe]
 
 # Experiment loop variables
 repetitions = 2
@@ -32,7 +26,7 @@ for exe in executables:
     execution_times.append(times)
 
 # output processing
-with open('results.csv', 'a', newline='') as csv_file:
+with open('simd_results.csv', 'a', newline='') as csv_file:
     fields = ["Executable", "Min", "Max", "Mean", "Median", "Std. Deviation", "Time Stamp"]
     csv_writer = csv.DictWriter(csv_file, fieldnames=fields)
     csv_writer.writeheader()
