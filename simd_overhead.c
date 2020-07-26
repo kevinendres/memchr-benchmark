@@ -51,15 +51,15 @@ int main (int argc, char **argv) {
     __FUNC_CALL__(mem_block, search_char, buffer_size);
     clock_gettime(CLOCK_MONOTONIC, &end);
     elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
-    printf("%ld", elapsed_time);
+    printf("%ld\n", elapsed_time);
 
     //loop measure
-    for(i = 0; i < 10; i++) {
+    for(int i = 0; i < 10; i++) {
         clock_gettime(CLOCK_MONOTONIC, &start);
         __FUNC_CALL__(mem_block, search_char, buffer_size);
         clock_gettime(CLOCK_MONOTONIC, &end);
         elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
-        printf("%ld", elapsed_time);
+        printf("%ld\n", elapsed_time);
     }
 
     free(mem_block);
