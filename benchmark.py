@@ -14,7 +14,7 @@ for exe in [glibc_exe, simple_exe]:
         executables.append(exe+i)
 
 # Experiment loop variables
-repetitions = 2
+repetitions = 100
 execution_times = list()
 
 # Experiment loop

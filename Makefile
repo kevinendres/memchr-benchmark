@@ -62,10 +62,10 @@ memchr_simple_O3.o : memchr_simple.c
 	$(CC) $(CFLAGS) memchr_simple.c -O3 -c -o $@
 
 simdo_avx2 : memchr_avx2.o
-	$(CC) $(CCFLAGS) $< simd_overhead_benchmark.c $(AVX)
+	$(CC) $(CCFLAGS) $< simd_overhead.c $(AVX) -o simd_overhead_avx2
 
-simdo_sse : memchr_sse2.o
-	$(CC) $(CCFLAGS) $< simd_overhead_benchmark.c $(SSE)
+simdo_sse : memchr_sse.o
+	$(CC) $(CCFLAGS) $< simd_overhead.c $(SSE) -o simd_overhead_sse
 
 BINS = memchr_avx2 memchr_sse memchr_simple memchr_glibc memchr_glibc_* memchr_simple_* simd_overhead_avx2 simd_overhead_sse
 .PHONY : clean
