@@ -10,7 +10,7 @@ SSE = -D__FUNC_CALL__="__memchr_sse"
 GLIBC = -D__FUNC_CALL__="__memchr_glibc"
 SIMP = -D__FUNC_CALL__="__memchr_simple"
 
-all : memchr_sse memchr_avx2 memchr_glibc memchr_simple 
+all : memchr_sse memchr_avx2 memchr_glibc memchr_simple simdo_avx2 simdo_sse
 .PHONY : all
 
 memchr_sse: memchr_sse.o memchr_main.c
@@ -61,7 +61,13 @@ memchr_simple_O2.o : memchr_simple.c
 memchr_simple_O3.o : memchr_simple.c
 	$(CC) $(CFLAGS) memchr_simple.c -O3 -c -o $@
 
-BINS = memchr_avx2 memchr_sse memchr_simple memchr_glibc memchr_glibc_* memchr_simple_*
+simdo_avx2 : memchr_avx2.o
+	$(CC) $(CCFLAGS) $< simd_overhead_benchmark.c $(AVX)
+
+simdo_sse : memchr_sse2.o
+	$(CC) $(CCFLAGS) $< simd_overhead_benchmark.c $(SSE)
+
+BINS = memchr_avx2 memchr_sse memchr_simple memchr_glibc memchr_glibc_* memchr_simple_* simd_overhead_avx2 simd_overhead_sse
 .PHONY : clean
 clean : 
 	rm -f $(BINS) *.o
