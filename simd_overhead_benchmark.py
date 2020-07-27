@@ -8,7 +8,7 @@ sse_exe = "simd_overhead_sse"
 executables = [avx2_exe, sse_exe]
 
 # Experiment loop variables
-repetitions = 50 
+repetitions = 2 
 execution_times = list()
 
 # Experiment loop
@@ -18,8 +18,9 @@ for exe in executables:
     times = list()
     print("beginning loop")
     while (i < repetitions):
-        output = subprocess.run(path_exe, capture_output=True)
-        output = output.stdout.decode("ascii").split('\n')
+        sub_proc = subprocess.Popen(path_exe, stdout=subprocess.PIPE)
+        output, err = sub_proc.communicate()
+        output = output.decode("ascii").split('\n')
         output.pop()
         for j, call in enumerate(output):
             output[j] = int(call)

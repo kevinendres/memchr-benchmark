@@ -24,8 +24,9 @@ for exe in executables:
     times = list()
     print("beginning loop")
     while (i < repetitions):
-        output = subprocess.run(path_exe, capture_output=True)
-        output = int(output.stdout.decode("ascii"))
+        sub_proc = subprocess.Popen(path_exe, stdout=subprocess.PIPE)
+        output, err = sub_proc.communicate()
+        output = int(output.decode("ascii"))
         times.append(output)
         print(i)
         i += 1
