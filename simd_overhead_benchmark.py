@@ -8,7 +8,7 @@ sse_exe = "simd_overhead_sse"
 executables = [avx2_exe, sse_exe]
 
 # Experiment loop variables
-repetitions = 100
+repetitions = 150
 execution_times = list()
 
 # Experiment loop

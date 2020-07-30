@@ -25,11 +25,11 @@ memchr_avx2: memchr_avx2.o memchr_main.c
 memchr_avx2.o : memchr_avx2.S
 	$(CC) $(CFLAGS) -c memchr_avx2.S $(INCLUDES) 
 
-memchr_glibc : memchr_glibc.o memchr_glibc_O.o memchr_glibc_O2.o memchr_glibc_O3.o
+memchr_glibc : memchr_glibc.o memchr_glibc_O.o memchr_glibc_O2.o memchr_glibc_Ofast.o
 	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc.o -o memchr_glibc
 	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc_O.o -o memchr_glibc_O
 	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc_O2.o -o memchr_glibc_O2
-	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc_O3.o -o memchr_glibc_O3
+	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc_Ofast.o -o memchr_glibc_Ofast
 
 memchr_glibc.o : memchr_glibc.c
 	$(CC) $(CFLAGS) -c memchr_glibc.c 
@@ -40,14 +40,14 @@ memchr_glibc_O.o : memchr_glibc.c
 memchr_glibc_O2.o : memchr_glibc.c
 	$(CC) $(CFLAGS) memchr_glibc.c -O2 -c -o $@
 
-memchr_glibc_O3.o : memchr_glibc.c
-	$(CC) $(CFLAGS) memchr_glibc.c -O3 -c -o $@
+memchr_glibc_Ofast.o : memchr_glibc.c
+	$(CC) $(CFLAGS) memchr_glibc.c -Ofast -c -o $@
 
-memchr_simple : memchr_simple.o memchr_simple_O.o memchr_simple_O2.o memchr_simple_O3.o
+memchr_simple : memchr_simple.o memchr_simple_O.o memchr_simple_O2.o memchr_simple_Ofast.o
 	$(CC) $(CFLAGS) memchr_main.c $(SIMP) memchr_simple.o -o memchr_simple
 	$(CC) $(CFLAGS) memchr_main.c $(SIMP) memchr_simple_O.o -o memchr_simple_O
 	$(CC) $(CFLAGS) memchr_main.c $(SIMP) memchr_simple_O2.o -o memchr_simple_O2
-	$(CC) $(CFLAGS) memchr_main.c $(SIMP) memchr_simple_O3.o -o memchr_simple_O3
+	$(CC) $(CFLAGS) memchr_main.c $(SIMP) memchr_simple_Ofast.o -o memchr_simple_Ofast
 
 memchr_simple.o : memchr_simple.c
 	$(CC) $(CFLAGS) memchr_simple.c -c
@@ -58,8 +58,8 @@ memchr_simple_O.o : memchr_simple.c
 memchr_simple_O2.o : memchr_simple.c
 	$(CC) $(CFLAGS) memchr_simple.c -O2 -c -o $@
 
-memchr_simple_O3.o : memchr_simple.c
-	$(CC) $(CFLAGS) memchr_simple.c -O3 -c -o $@
+memchr_simple_Ofast.o : memchr_simple.c
+	$(CC) $(CFLAGS) memchr_simple.c -Ofast -c -o $@
 
 simdo_avx2 : memchr_avx2.o
 	$(CC) $(CCFLAGS) $< simd_overhead.c $(AVX) -o simd_overhead_avx2
