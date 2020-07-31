@@ -8,13 +8,13 @@ sse_exe = "memchr_sse"
 glibc_exe = "memchr_glibc"
 simple_exe = "memchr_simple"
 executables = [avx2_exe, sse_exe, glibc_exe, simple_exe]
-optimizations = ["_O", "_O2", "_O3"]
+optimizations = ["_O", "_O2", "_Ofast"]
 for exe in [glibc_exe, simple_exe]:
     for i in optimizations:
         executables.append(exe+i)
 
 # Experiment loop variables
-repetitions = 150
+repetitions = 4
 execution_times = list()
 
 # Experiment loop
@@ -33,17 +33,28 @@ for exe in executables:
     execution_times.append(times)
 
 # output processing
+baseline_i = executables.index("memchr_simple")
+baseline = statistics.mean(execution_times[baseline_i])
+means = list()
+speedups = list()
+for time_set in execution_times:
+    means.append(statistics.mean(time_set))
+for mean in means:
+    speedups.append(baseline / mean)
+
+# output writing
 with open('results.csv', 'a', newline='') as csv_file:
-    fields = ["Executable", "Min", "Max", "Mean", "Median", "Std. Deviation", "Time Stamp"]
+    fields = ["Executable", "Min", "Max", "Mean", "Median", "Std. Deviation", "Time Stamp", "Speedup"]
     csv_writer = csv.DictWriter(csv_file, fieldnames=fields)
     csv_writer.writeheader()
     for i, times in enumerate(execution_times):
         min_time = min(times)
         max_time = max(times)
-        mean_time = statistics.mean(times)
+        mean_time = means[i]
         median_time = statistics.median(times)
         std_dev = statistics.stdev(times) 
         time_stamp = datetime.datetime.now().replace(microsecond=0).isoformat()
         exe = executables[i]
+        speed_up = speedups[i]
         csv_writer.writerow({ "Executable" : exe, "Min" : min_time, "Max" : max_time, "Mean" : mean_time,\
-                "Median" : median_time, "Std. Deviation" : std_dev, "Time Stamp" : time_stamp })
+                "Median" : median_time, "Std. Deviation" : std_dev, "Time Stamp" : time_stamp, "Speedup" : speed_up })
