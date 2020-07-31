@@ -9,12 +9,16 @@ glibc_exe = "memchr_glibc"
 simple_exe = "memchr_simple"
 executables = [avx2_exe, sse_exe, glibc_exe, simple_exe]
 optimizations = ["_O", "_O2", "_Ofast"]
+alt_flags = ["_altopts_1", "_altopts_2", "_altopts_3"]
 for exe in [glibc_exe, simple_exe]:
     for i in optimizations:
-        executables.append(exe+i)
+        executables.append(exe + i)
+    if (exe == "memchr_glibc"):
+        for alt_flag in alt_flags:
+            executables.append(exe + alt_flag)
 
 # Experiment loop variables
-repetitions = 4
+repetitions = 150
 execution_times = list()
 
 # Experiment loop

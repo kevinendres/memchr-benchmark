@@ -5,6 +5,9 @@ CFLAGS += -march=native
 #CFLAGS += -march=icelake-client
 #CFLAGS += -Wno-unused-function -Wno-parentheses
 INCLUDES = -I ~/src/glibc/sysdeps/x86_64 -I ~/src/glibc/sysdeps/x86_64/x32 -I ~/src/glibc/include -I ~/src/glibc/build/ -I ~/src/glibc
+ALT_FLAGS_1 = -c -std=gnu11 -fgnu89-inline -g -O2 -Wall -Wwrite-strings -Wundef -Werror -fmerge-all-constants -frounding-math -fno-stack-protector -Wstrict-prototypes -Wold-style-definition -fmath-errno -ftls-model=initial-exec
+ALT_FLAGS_2 = -c -std=gnu11 -fgnu89-inline -g -O2 -Wall -Wwrite-strings -Wundef -Werror -fmerge-all-constants -frounding-math -fno-stack-protector -Wstrict-prototypes -Wold-style-definition -fmath-errno -fPIC -ftls-model=initial-exec
+ALT_FLAGS_3 = -c -std=gnu11 -fgnu89-inline -march=x86-64 -mtune=generic -O2 -pipe -Wall -Wwrite-strings -Wundef -fmerge-all-constants -frounding-math -fstack-protector-strong -Wstrict-prototypes -Wold-style-definition -fmath-errno -fPIC -fcf-protection -ftls-model=initial-exec
 AVX = -D__FUNC_CALL__="__memchr_avx2"
 SSE = -D__FUNC_CALL__="__memchr_sse"
 GLIBC = -D__FUNC_CALL__="__memchr_glibc"
@@ -25,11 +28,14 @@ memchr_avx2: memchr_avx2.o memchr_main.c
 memchr_avx2.o : memchr_avx2.S
 	$(CC) $(CFLAGS) -c memchr_avx2.S $(INCLUDES) 
 
-memchr_glibc : memchr_glibc.o memchr_glibc_O.o memchr_glibc_O2.o memchr_glibc_Ofast.o
+memchr_glibc : memchr_glibc.o memchr_glibc_O.o memchr_glibc_O2.o memchr_glibc_Ofast.o memchr_glibc_altopts_1.o memchr_glibc_altopts_2.o memchr_glibc_altopts_3.o
 	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc.o -o memchr_glibc
 	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc_O.o -o memchr_glibc_O
 	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc_O2.o -o memchr_glibc_O2
 	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc_Ofast.o -o memchr_glibc_Ofast
+	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc_altopts_1.o -o memchr_glibc_altopts_1
+	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc_altopts_2.o -o memchr_glibc_altopts_2
+	$(CC) $(CFLAGS) memchr_main.c $(GLIBC) memchr_glibc_altopts_3.o -o memchr_glibc_altopts_3
 
 memchr_glibc.o : memchr_glibc.c
 	$(CC) $(CFLAGS) -c memchr_glibc.c 
@@ -42,6 +48,15 @@ memchr_glibc_O2.o : memchr_glibc.c
 
 memchr_glibc_Ofast.o : memchr_glibc.c
 	$(CC) $(CFLAGS) memchr_glibc.c -Ofast -c -o $@
+
+memchr_glibc_altopts_1.o : memchr_glibc.c
+	$(CC) $(CFLAGS) $(ALT_FLAGS_1) memchr_glibc.c -o $@
+
+memchr_glibc_altopts_2.o : memchr_glibc.c
+	$(CC) $(CFLAGS) $(ALT_FLAGS_2) memchr_glibc.c -o $@
+
+memchr_glibc_altopts_3.o : memchr_glibc.c
+	$(CC) $(ALT_FLAGS_3) memchr_glibc.c -o $@
 
 memchr_simple : memchr_simple.o memchr_simple_O.o memchr_simple_O2.o memchr_simple_Ofast.o
 	$(CC) $(CFLAGS) memchr_main.c $(SIMP) memchr_simple.o -o memchr_simple
