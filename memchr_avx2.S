@@ -16,8 +16,10 @@
    License along with the GNU C Library; if not, see
    <https://www.gnu.org/licenses/>.  */
 
-# include <sysdep.h>
-# include <libc-symbols.h>
+#define L(a) _ ## a
+#define ENTRY(a) a:
+#define RDX_LP rdx
+#define END(z)
 
 # ifndef MEMCHR
 #  define MEMCHR	__memchr_avx2
@@ -35,7 +37,8 @@
 
 # define VEC_SIZE 32
 
-	.section .text.avx,"ax",@progbits
+	.text
+	.globl  __memchr_avx2
 ENTRY (MEMCHR)
 # ifndef USE_AS_RAWMEMCHR
 	/* Check for zero length.  */

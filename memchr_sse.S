@@ -16,8 +16,10 @@
    License along with the GNU C Library; if not, see
    <https://www.gnu.org/licenses/>.  */
 
-#include <sysdep.h>
-#include <libc-symbols.h>
+#define L(a) _ ## a
+#define ENTRY(a) a:
+#define RDX_LP rdx
+#define END(z)
 
 #ifdef USE_AS_WMEMCHR
 # define MEMCHR		wmemchr
@@ -29,7 +31,8 @@
 
 /* fast SSE2 version with using pmaxub and 64 byte loop */
 
-	.text 
+	.text
+	.globl  __memchr_sse
 ENTRY(MEMCHR)
 	movd	%esi, %xmm1
 	mov	%edi, %ecx
@@ -328,8 +331,3 @@ L(return_null):
 	xor	%eax, %eax
 	ret
 END(MEMCHR)
-
-#ifndef USE_AS_WMEMCHR
-strong_alias (memchr, __memchr)
-libc_hidden_builtin_def(memchr)
-#endif

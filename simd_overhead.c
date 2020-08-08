@@ -2,7 +2,7 @@
 //tests for overhead in SIMD instructions
 
 #ifndef BUFFER_SIZE
-# define BUFFER_SIZE 1000000000
+# define BUFFER_SIZE 100000
 #endif
 
 #ifndef MEM_FILLER
@@ -17,6 +17,7 @@
 # define __FUNC_CALL__ memchr
 #endif
 
+#include <x86intrin.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -46,6 +47,9 @@ int main (int argc, char **argv) {
     }
     *( mem_block + buffer_size - 1) = search_char;
 
+	    for (int j = 0; j < BUFFER_SIZE; j++) {
+	      _mm_clflush(mem_block+j);
+	    }
     //initial measure
     clock_gettime(CLOCK_MONOTONIC, &start);
     __FUNC_CALL__(mem_block, search_char, buffer_size);
@@ -55,6 +59,9 @@ int main (int argc, char **argv) {
 
     //loop measure
     for(int i = 0; i < 10; i++) {
+	    for (int j = 0; j < BUFFER_SIZE; j++) {
+	      _mm_clflush(mem_block+j);
+	    }
         clock_gettime(CLOCK_MONOTONIC, &start);
         __FUNC_CALL__(mem_block, search_char, buffer_size);
         clock_gettime(CLOCK_MONOTONIC, &end);

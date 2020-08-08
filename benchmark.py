@@ -48,7 +48,7 @@ for mean in means:
 
 # output writing
 with open('results.csv', 'a', newline='') as csv_file:
-    fields = ["Executable", "Min", "Max", "Mean", "Median", "Std. Deviation", "Time Stamp", "Speedup"]
+    fields = ["Executable", "Min", "Max", "Mean", "Median", "Std. Deviation", "Time Stamp", "Speedup", "GB/s"]
     csv_writer = csv.DictWriter(csv_file, fieldnames=fields)
     csv_writer.writeheader()
     for i, times in enumerate(execution_times):
@@ -60,5 +60,7 @@ with open('results.csv', 'a', newline='') as csv_file:
         time_stamp = datetime.datetime.now().replace(microsecond=0).isoformat()
         exe = executables[i]
         speed_up = speedups[i]
+        gb_s = 1E9 / mean_time
         csv_writer.writerow({ "Executable" : exe, "Min" : min_time, "Max" : max_time, "Mean" : mean_time,\
-                "Median" : median_time, "Std. Deviation" : std_dev, "Time Stamp" : time_stamp, "Speedup" : speed_up })
+                "Median" : median_time, "Std. Deviation" : std_dev, "Time Stamp" : time_stamp, \
+                "Speedup" : speed_up, "GB/s" : gb_s })
