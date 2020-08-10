@@ -2,7 +2,7 @@
 //Takes args in order: 1) buffer_size
 
 #ifndef BUFFER_SIZE
-# define BUFFER_SIZE 50000000 
+# define BUFFER_SIZE 1000000000 
 #endif
 
 #ifndef MEM_FILLER
@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <omp.h>
 
 #define NANOSEC_CONVERSION 1E9
 
@@ -46,13 +47,22 @@ int main (int argc, char **argv) {
     }
     *( mem_block + buffer_size - 1) = search_char;
 
-    //measure
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    __FUNC_CALL__(mem_block, search_char, buffer_size);
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
-    printf("%ld", elapsed_time);
+    //omp setup
+    #pragma omp parallel
+    {
+        #pragma omp barrier
+        #pragma omp master
 
+        //measure
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        __FUNC_CALL__(mem_block, search_char, buffer_size);
+        #pragma omp barrier
+        #pragma omp master
+        clock_gettime(CLOCK_MONOTONIC, &end);
+    }
+        elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
+        printf("%ld", elapsed_time);
+        
     free(mem_block);
     return elapsed_time;
 }

@@ -7,8 +7,9 @@ avx2_exe = "memchr_avx2"
 sse_exe = "memchr_sse"
 glibc_exe = "memchr_glibc"
 simple_exe = "memchr_simple"
-executables = [avx2_exe, sse_exe, glibc_exe, simple_exe]
-optimizations = ["_O", "_O2", "_Ofast"]
+throughput_exe = "throughput"
+executables = [avx2_exe, sse_exe, glibc_exe, simple_exe, throughput_exe]
+optimizations = ["_O", "_O2", "_Ofast", "_unroll_O2", "_unrollall_O2"]
 alt_flags = ["_altopts_1", "_altopts_2", "_altopts_3"]
 for exe in [glibc_exe, simple_exe]:
     for i in optimizations:
@@ -18,7 +19,7 @@ for exe in [glibc_exe, simple_exe]:
             executables.append(exe + alt_flag)
 
 # Experiment loop variables
-repetitions = 150
+repetitions = 25
 execution_times = list()
 
 # Experiment loop
