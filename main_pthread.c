@@ -1,8 +1,15 @@
 //Returns time of memchr operation in nanoseconds
 //Takes args in order: 1) buffer_size
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+
+#include "memchr.h"
+
 #ifndef BUFFER_SIZE
-# define BUFFER_SIZE 1073741824
+# define BUFFER_SIZE 1000000000 //1073741824 //1 GiB
 #endif
 
 #ifndef MEM_FILLER
@@ -13,29 +20,21 @@
 # define SEARCH_STR 0x41
 #endif
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <time.h>
-#include "memchr.h"
+// #ifndef MEMCHR_IMPL
+// # define MEMCHR_IMPL memchr
+// #endif
 
 #define NANOSEC_CONVERSION 1E9
 
-char random_char() {
-    char c = rand() % 256;
-    return c;
-}
-
 int main (int argc, char **argv) {
-    //seed randomization and inits/decs
-    srand(time(NULL));
+    //inits/decs
     int buffer_size = BUFFER_SIZE;
-    char* mem_block = (char*) malloc(buffer_size);
+    char* mem_block = (char*) aligned_alloc(128, buffer_size);
     char fill_character = MEM_FILLER;
     char search_char = SEARCH_STR; 
     struct timespec start, end;
     long elapsed_time;
-
+    char* return_val;
 
     //fill memory, set last byte to target
     for(int i = 0; i < buffer_size; i++) {
@@ -48,8 +47,11 @@ int main (int argc, char **argv) {
     MEMCHR_IMPL(mem_block, search_char, buffer_size);
     clock_gettime(CLOCK_MONOTONIC, &end);
     elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
-    printf("%ld", elapsed_time);
+    return_val = (char *) MEMCHR_IMPL(mem_block, search_char, buffer_size);
+    printf("%ld\n", elapsed_time);
+    printf("value at end of buffer: %x\n", *(mem_block + buffer_size -1));
+    printf("return value from func: %x\n", *(return_val));
 
     free(mem_block);
-    return elapsed_time;
+    exit(0);
 }

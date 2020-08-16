@@ -2,7 +2,7 @@
    Copyright (C) 2017-2020 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
-   The GNU C Library is free software; you can redistribute it and/or
+   The GNU C Library is free software;  you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
    License as published by the Free Software Foundation; either
    version 2.1 of the License, or (at your option) any later version.
@@ -22,7 +22,7 @@
 #define END(z)
 
 # ifndef MEMCHR
-#  define MEMCHR	__memchr_avx2
+#  define MEMCHR	MEMCHR_IMPL
 # endif
 
 # ifdef USE_AS_WMEMCHR
@@ -38,7 +38,7 @@
 # define VEC_SIZE 32
 
 	.text
-	.globl  __memchr_avx2
+	.globl  MEMCHR_IMPL
 ENTRY (MEMCHR)
 # ifndef USE_AS_RAWMEMCHR
 	/* Check for zero length.  */

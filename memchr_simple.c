@@ -1,6 +1,7 @@
 #include <stddef.h>
+#include "memchr.h"
 
-void* __memchr_simple(const void *s, int c_in, size_t n) {
+void* MEMCHR_IMPL(const void *s, int c_in, size_t n) {
     const char* end = (char*) s + n;
     char c = (unsigned char) c_in;
     for (char* i = s; i < end; ++i) {
