@@ -13,10 +13,6 @@
 # define SEARCH_STR 0x41
 #endif
 
-#ifndef __FUNC_CALL__
-# define __FUNC_CALL__ memchr
-#endif
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -24,14 +20,8 @@
 
 #define NANOSEC_CONVERSION 1E9
 
-char random_char() {
-    char c = rand() % 256;
-    return c;
-}
-
 int main (int argc, char **argv) {
-    //seed randomization and inits/decs
-    srand(time(NULL));
+    //inits/decs
     int buffer_size = BUFFER_SIZE;
     char* mem_block = (char*) malloc(buffer_size);
     char* end_mem_block = mem_block + buffer_size;
@@ -39,6 +29,7 @@ int main (int argc, char **argv) {
     char fill_char = MEM_FILLER; 
     struct timespec start, end;
     long elapsed_time;
+    char* next_start;
 
 
     //fill memory, set last byte to target
@@ -47,18 +38,18 @@ int main (int argc, char **argv) {
     }
     *( mem_block + buffer_size / 2 ) = search_char;
     *( mem_block + buffer_size - 1) = search_char;
+    *( mem_block + buffer_size - 10) = search_char;
 
     //measure
-    while ( buffer_size > 0 ) {
+    while ( buffer_size > 1 ) {
         clock_gettime(CLOCK_MONOTONIC, &start);
-        char* next_start = memchr(mem_block, search_char, buffer_size);
+        memchr(mem_block, search_char, buffer_size);
         clock_gettime(CLOCK_MONOTONIC, &end);
+        next_start = memchr(mem_block, search_char, buffer_size);
         elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
         printf("elapsed time: %ld\n", elapsed_time);
-        buffer_size = buffer_size - ( next_start - mem_block );
-        printf("buffer decrement %d", next_start - mem_block );
-        printf("buffer size: %d", buffer_size);
-        mem_block = (char*) next_start;
+        buffer_size = end_mem_block - next_start;
+        mem_block = (char *) next_start + 1;
     }
 
     free(mem_block);
