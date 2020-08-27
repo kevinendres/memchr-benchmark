@@ -2,7 +2,7 @@
 //Takes args in order: 1) buffer_size
 
 #ifndef BUFFER_SIZE
-# define BUFFER_SIZE 1000000000
+# define BUFFER_SIZE 1000000007
 #endif
 
 #ifndef MEM_FILLER
