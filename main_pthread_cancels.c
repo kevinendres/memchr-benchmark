@@ -23,8 +23,6 @@
 
 #define NANOSEC_CONVERSION 1E9
 #define NUM_THREADS 10
-#define PAGE_SIZE sysconf(_SC_PAGESIZE) 
-#define L3_SIZE sysconf(_SC_LEVEL3_CACHE_SIZE)
 
 /* GLOBAL */
 char *return_val;
@@ -34,6 +32,7 @@ int chunk_size;
 int final_thread;
 int buffer_size;
 pthread_t tid[NUM_THREADS];
+char *return_vals[NUM_THREADS];
 
 /* Prototype */
 void *multi_memchr(void *vargp);
@@ -51,13 +50,12 @@ int main (int argc, char **argv) {
     //thread related inits
     long myid[NUM_THREADS];
     chunk_size = buffer_size / NUM_THREADS;    //each thread does chunk_size work before syncing, except final thread
-    //char *results[NUM_THREADS];
 
     //fill memory, set last byte to search_char
-    for(int i = 0; i < buffer_size; i++) {
-        *( mem_block + i ) = fill_character;
+    for (int i = 0; i < buffer_size; i++) {
+        *(mem_block + i) = fill_character;
     }
-    *( mem_block + chunk_size + 3) = search_char;
+    *(mem_block + buffer_size - 1) = search_char;
 
     //threading
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -68,11 +66,16 @@ int main (int argc, char **argv) {
     for (int i = 0; i < NUM_THREADS; i++) {
         pthread_join(tid[i], NULL);
     }
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (return_vals[i] != NULL) {
+            return_val = return_vals[i];
+            break;
+        }
+    }
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
-    printf("total elapsed time: %ld\n", elapsed_time);
-    printf("number of threads: %d\n", NUM_THREADS);
+    printf("%ld", elapsed_time);
 
     free(mem_block);
     exit(0);
@@ -80,8 +83,6 @@ int main (int argc, char **argv) {
 
 void *multi_memchr(void *vargp)
 {
-    struct timespec local_start, local_end;
-    long local_elapsed_time;
     long myid = *((long *) vargp);
     int local_chunk_size;
     char *local_return_val;
@@ -92,21 +93,13 @@ void *multi_memchr(void *vargp)
     } else { 
         local_chunk_size = chunk_size; 
         }
-    clock_gettime(CLOCK_MONOTONIC, &local_start);
-    local_return_val = memchr(local_mem_block, search_char, local_chunk_size);
+    local_return_val = MEMCHR_IMPL(local_mem_block, search_char, local_chunk_size);
     if (local_return_val != NULL) {
-        printf("I'm the lucky thread: %d\n", myid);
-        return_val = local_return_val;
-        for (int i = 0; i < NUM_THREADS; i++) {
-            if (i != myid) {
-                printf("cancelling %d", i);
-                pthread_cancel(tid[i]);
-            }
+        return_vals[myid] = local_return_val;
+        //cancel any thread working in subsequent parts of the buffer
+        for (int i = myid + 1; i < NUM_THREADS; i++) {
+            pthread_cancel(tid[i]);
         }
     }
-    clock_gettime(CLOCK_MONOTONIC, &local_end);
-    local_elapsed_time = (local_end.tv_sec * NANOSEC_CONVERSION + local_end.tv_nsec) - (local_start.tv_sec * NANOSEC_CONVERSION + local_start.tv_nsec);
-    printf("Thread %d finished in %ld with return val %x. Search start: %x search end: %x\n", myid, local_elapsed_time, local_return_val, \
-        local_mem_block, local_mem_block+local_chunk_size);
     return NULL;
 }

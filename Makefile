@@ -10,15 +10,11 @@ ALT_FLAGS_2 = -c -std=gnu11 -fgnu89-inline -g -O2 -Wall -Wwrite-strings -Wundef 
 ALT_FLAGS_3 = -c -std=gnu11 -fgnu89-inline -march=x86-64 -mtune=generic -O2 -pipe -Wall -Wwrite-strings -Wundef -fmerge-all-constants -frounding-math -fstack-protector-strong -Wstrict-prototypes -Wold-style-definition -fmath-errno -fPIC -fcf-protection -ftls-model=initial-exec
 UNROLL = -funroll-loops -fvariable-expansion-in-unroller 
 UNROLL_ALL = -funroll-all-loops -fvariable-expansion-in-unroller
-# AVX = -D__FUNC_CALL__="__memchr_avx2"
-# SSE = -D__FUNC_CALL__="__memchr_sse"
-# GLIBC = -D__FUNC_CALL__="__memchr_glibc"
-# SIMP = -D__FUNC_CALL__="__memchr_simple"
 
-all : memchr_sse memchr_avx2 memchr_glibc memchr_simple simdo_avx2 simdo_sse memchr_unrolls throughput memchr_pthread
+all : memchr_sse memchr_avx2 memchr_glibc memchr_simple simdo_avx2 simdo_sse memchr_unrolls throughput pthread_blocks pthread_cancels
 .PHONY : all
 
-memchr_sse: memchr_sse.o memchr_main.c
+memchr_sse : memchr_sse.o memchr_main.c
 	$(CC) $(CFLAGS) -o $@ $^ 
 
 memchr_sse.o : memchr_sse.S
@@ -108,16 +104,40 @@ glibc_unroll_O2.o : memchr_glibc.c
 glibc_unrollall_O2.o : memchr_glibc.c
 	$(CC) $(CFLAGS) $(UNROLL_ALL) -O2 -c -o $@ $<
 
-memchr_pthread : memchr_pthread.o main_pthread.o
-	$(CC) -lpthread $^ -o $@
+OBJ_FILES = memchr_avx2.o memchr_sse.o memchr_glibc.o memchr_glibc_O.o memchr_glibc_O2.o memchr_glibc_Ofast.o memchr_simple.o memchr_simple_O.o memchr_simple_O2.o memchr_simple_Ofast.o
+OBJ_FILES += glibc_unroll_O2.o simple_unroll_O2.o
 
-memchr_pthread.o : memchr_pthread.c
-	$(CC) $(CLFAGS) -pthread -c $<
+pthread_blocks : main_pthread_blocks.c $(OBJ_FILES)
+	$(CC) $(CFLAGS) main_pthread_blocks.c memchr_avx2.o -pthread -o ./parallel_bins/blocks/memchr_avx2
+	$(CC) $(CFLAGS) main_pthread_blocks.c memchr_sse.o -pthread -o ./parallel_bins/blocks/memchr_sse
+	$(CC) $(CFLAGS) main_pthread_blocks.c memchr_glibc.o -pthread -o ./parallel_bins/blocks/memchr_glibc
+	$(CC) $(CFLAGS) main_pthread_blocks.c memchr_glibc_O.o -pthread -o ./parallel_bins/blocks/memchr_glibc_O
+	$(CC) $(CFLAGS) main_pthread_blocks.c memchr_glibc_O2.o -pthread -o ./parallel_bins/blocks/memchr_glibc_O2
+	$(CC) $(CFLAGS) main_pthread_blocks.c memchr_glibc_Ofast.o -pthread -o ./parallel_bins/blocks/memchr_glibc_Ofast
+	$(CC) $(CFLAGS) main_pthread_blocks.c memchr_simple.o -pthread -o ./parallel_bins/blocks/memchr_simple
+	$(CC) $(CFLAGS) main_pthread_blocks.c memchr_simple_O.o -pthread -o ./parallel_bins/blocks/memchr_simple_O
+	$(CC) $(CFLAGS) main_pthread_blocks.c memchr_simple_O2.o -pthread -o ./parallel_bins/blocks/memchr_simple_O2
+	$(CC) $(CFLAGS) main_pthread_blocks.c memchr_simple_Ofast.o -pthread -o ./parallel_bins/blocks/memchr_simple_Ofast
+	$(CC) $(CFLAGS) main_pthread_blocks.c glibc_unroll_O2.o -pthread -o ./parallel_bins/blocks/memchr_glibc_unroll_O2
+	$(CC) $(CFLAGS) main_pthread_blocks.c simple_unroll_O2.o -pthread -o ./parallel_bins/blocks/memchr_simple_unroll_O2
 
-main_pthread.o : main_pthread.c
-	$(CC) $(CFLAGS) -c $<
+pthread_cancels : main_pthread_cancels.c $(OBJ_FILES)
+	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_avx2.o -pthread -o ./parallel_bins/cancels/memchr_avx2
+	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_sse.o -pthread -o ./parallel_bins/cancels/memchr_sse
+	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_glibc.o -pthread -o ./parallel_bins/cancels/memchr_glibc
+	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_glibc_O.o -pthread -o ./parallel_bins/cancels/memchr_glibc_O
+	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_glibc_O2.o -pthread -o ./parallel_bins/cancels/memchr_glibc_O2
+	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_glibc_Ofast.o -pthread -o ./parallel_bins/cancels/memchr_glibc_Ofast
+	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_simple.o -pthread -o ./parallel_bins/cancels/memchr_simple
+	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_simple_O.o -pthread -o ./parallel_bins/cancels/memchr_simple_O
+	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_simple_O2.o -pthread -o ./parallel_bins/cancels/memchr_simple_O2
+	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_simple_Ofast.o -pthread -o ./parallel_bins/cancels/memchr_simple_Ofast
+	$(CC) $(CFLAGS) main_pthread_cancels.c glibc_unroll_O2.o -pthread -o ./parallel_bins/cancels/memchr_glibc_unroll_O2
+	$(CC) $(CFLAGS) main_pthread_cancels.c simple_unroll_O2.o -pthread -o ./parallel_bins/cancels/memchr_simple_unroll_O2
 
 BINS = memchr_avx2 memchr_sse memchr_simple memchr_glibc memchr_glibc_* memchr_simple_* simd_overhead_avx2 simd_overhead_sse throughput memchr_threaded
 .PHONY : clean
 clean : 
 	rm -f $(BINS) *.o
+	rm -f ./parallel_bins/blocks/*
+	rm -f ./parallel_bins/cancels/*
