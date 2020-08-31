@@ -19,7 +19,7 @@ for exe in [glibc_exe, simple_exe]:
             executables.append(exe + alt_flag)
 
 # Experiment loop variables
-repetitions = 25
+repetitions = 20
 execution_times = list()
 
 # Experiment loop
