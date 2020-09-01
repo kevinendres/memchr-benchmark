@@ -106,13 +106,11 @@ void *multi_memchr(void *vargp)
         if (myid == final_thread)
             local_slice_size = (remaining_bytes < L3_SIZE ? remaining_bytes : L3_SIZE) - myid * slice_size;
 
-        local_return_val = memchr(local_start, search_char, local_slice_size);
+        local_return_val = MEMCHR_IMPL(local_start, search_char, local_slice_size);
 
-        // store result in an array to avoid races 
-        return_vals[myid] = local_return_val;
-        
         //sync and check for hits
         pthread_barrier_wait(&sync_point);
+        return_vals[myid] = local_return_val;
         for (int j = 0; j < NUM_THREADS; j++) {
             if (return_vals[j] != NULL) {
                 return NULL;
