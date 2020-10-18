@@ -14,24 +14,58 @@ for exe in [glibc_exe, simple_exe]:
     for i in optimizations:
         executables.append(exe + i)
 
-# Experiment loop variables
+# Experiment variables
 repetitions = 20
+thread_counts = [2, 4, 5, 6, 7, 8, 10, 12, 15, 18, 19, 20, 21, 22, 25, 27, 28, 30, 34, 37, 40]
+buffer_sizes = [19000000, 25000000, 50000000, 100000000, 256000000, 500000000, 1000000000, 2000000000, 4000000000, 8000000000, 17000000000]
+
 execution_times = list()
+configurations = list()
 
 # Experiment loop
 for exe in executables:
-    i = 0
+    block_size = 1000
+    increment = 1000
     path_exe = "/home/kevin/coding/memchr_benchmark/parallel_bins/blocks/" + exe
     times = list()
     print("beginning loop")
-    while (i < repetitions):
-        sub_proc = subprocess.Popen(path_exe, stdout=subprocess.PIPE)
-        output, err = sub_proc.communicate()
-        output = int(output.decode("ascii"))
-        times.append(output)
-        print(i)
-        i += 1
-    execution_times.append(times)
+    for thread_count in thread_counts:
+        for buffer_size in buffer_sizes:
+            while (block_size < buffer_size):
+                # Block size increment loop
+                i = 0
+                while (i < repetitions):
+                    # Execution loop that runs repetitions times for each configuration
+                    sub_proc = subprocess.Popen(path_exe, "-t", thread_count, "-d", buffer_size, "-b", block_size, stdout=subprocess.PIPE)
+                    output, err = sub_proc.communicate()
+                    output = int(output.decode("ascii"))
+                    times.append(output)
+                    print(i)
+                    i += 1
+                # record times and configuration
+                execution_times.append(times)
+                configurations.append(exe)
+                configurations.append(thread_count)
+                configurations.append(buffer_size)
+                configurations.append(block_size)
+
+                # increase block size
+                if (block_size >= 1000000000):
+                    increment = 512000000
+                if (block_size >= 128000000):
+                    increment = 128000000
+                if (block_size >= 16000000):
+                    increment = 16000000
+                if (block_size >= 2000000):
+                    increment = 2000000
+                if (block_size >= 512000):
+                    increment = 512000
+                if (block_size >= 64000):
+                    increment = 64000
+                if (block_size >= 4000):
+                    increment = 4000
+                block_size += increment
+
 
 # output processing
 baseline_i = executables.index("memchr_simple")
@@ -44,8 +78,9 @@ for mean in means:
     speedups.append(baseline / mean)
 
 # output writing
+j = 0
 with open('blocks_results.csv', 'a', newline='') as csv_file:
-    fields = ["Executable", "Min", "Max", "Mean", "Median", "Std. Deviation", "Time Stamp", "Speedup", "GB/s"]
+    fields = ["Executable", "Threads", "Buffer Size", "Block Size", "Speedup", "GB/s", "Min", "Max", "Mean", "Median", "Std. Deviation", "Time Stamp"]
     csv_writer = csv.DictWriter(csv_file, fieldnames=fields)
     csv_writer.writeheader()
     for i, times in enumerate(execution_times):
@@ -53,11 +88,18 @@ with open('blocks_results.csv', 'a', newline='') as csv_file:
         max_time = max(times)
         mean_time = means[i]
         median_time = statistics.median(times)
-        std_dev = statistics.stdev(times) 
+        std_dev = statistics.stdev(times)
         time_stamp = datetime.datetime.now().replace(microsecond=0).isoformat()
-        exe = executables[i]
+        exe = configurations[j]
+        j += 1
+        threads = configurations[j]
+        j += 1
+        buf = configurations[j]
+        j += 1
+        block = configurations[j]
+        j += 1
         speed_up = speedups[i]
-        gb_s = 1E9 / mean_time
-        csv_writer.writerow({ "Executable" : exe, "Min" : min_time, "Max" : max_time, "Mean" : mean_time,\
-                "Median" : median_time, "Std. Deviation" : std_dev, "Time Stamp" : time_stamp, \
-                "Speedup" : speed_up, "GB/s" : gb_s })
+        gb_s = buf / mean_time if buf > 1E9 else 0.001 * (buf / mean_time)
+        csv_writer.writerow({ "Executable" : exe, "Threads" : threads, "Buffer Size" : buf, \
+            "Block Size" : block, "Speedup" : speed_up, "GB/s" : gb_s, "Min" : min_time, "Max" : max_time, \
+            "Mean" : mean_time, "Median" : median_time, "Std. Deviation" : std_dev, "Time Stamp" : time_stamp, })

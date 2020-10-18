@@ -6,6 +6,7 @@
 #include <time.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <getopt.h>
 
 #include "memchr.h"
 
@@ -22,15 +23,19 @@
 #endif
 
 #define NANOSEC_CONVERSION 1E9
-#define NUM_THREADS 10
+#define NUM_THREADS 20
 #define L3_SIZE sysconf(_SC_LEVEL3_CACHE_SIZE)
 
-/* GLOBAL */
+#ifndef BLOCK_SIZE
+# define BLOCK_SIZE L3_SIZE
+#endif
+
+/* GLOBALS */
 char *mem_block;
 char search_char;
 int block_size;
 int slice_size;
-int final_thread;
+int final_thread;       /* for handling remainders of uneven block sizes*/
 int buffer_size;
 char *return_vals[NUM_THREADS];
 pthread_barrier_t sync_point;
@@ -39,12 +44,13 @@ pthread_barrier_t sync_point;
 void *multi_memchr(void *vargp);
 
 int main(int argc, char **argv) {
-    //inits/decs
+    /*  */
+    int opt
+    
+    /* inits/declarations */
     buffer_size = BUFFER_SIZE;
     final_thread = NUM_THREADS - 1;
     mem_block = (char*) aligned_alloc(64, buffer_size);
-    //preserve starting pointer to free later
-    char *mem_clear = mem_block;
     char fill_character = MEM_FILLER;
     search_char = SEARCH_STR; 
     struct timespec start, end;
@@ -52,23 +58,23 @@ int main(int argc, char **argv) {
     char *return_val = NULL;
     pthread_t tid[NUM_THREADS];
 
-    //thread related inits
-    long myid[NUM_THREADS];
-    block_size = L3_SIZE;
-    slice_size = L3_SIZE / NUM_THREADS;    //each thread does slice_size work before syncing, except final thread
+    /* thread related inits */
+    long my_id[NUM_THREADS];
+    block_size = BLOCK_SIZE;
+    slice_size = block_size / NUM_THREADS;    /* each thread does slice_size work before syncing, except final thread */
     pthread_barrier_init(&sync_point, NULL, NUM_THREADS);
 
-    //fill memory, set last byte to search_char
+    /* fill memory, set last byte to search_char */
     for (int i = 0; i < buffer_size; i++) {
         *(mem_block + i) = fill_character;
     }
     *(mem_block + buffer_size - 1) = search_char;
 
-    //threading
+    /* spawn and join threads with timer */
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < NUM_THREADS; i++) {
-        myid[i] = i;
-        pthread_create(&tid[i], NULL, multi_memchr, &myid[i]);
+        my_id[i] = i;
+        pthread_create(&tid[i], NULL, multi_memchr, &my_id[i]);
     }
     for (int i = 0; i < NUM_THREADS; i++) {
         pthread_join(tid[i], NULL);
@@ -85,42 +91,45 @@ int main(int argc, char **argv) {
     elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
     printf("%ld", elapsed_time);
 
-    free(mem_clear);
+    free(mem_block);
     exit(0);
 }
 
 void *multi_memchr(void *vargp)
 {
-    long myid = *((long *) vargp);
+    /* inits/declarations */
+    long my_id = *((long *) vargp);
     int local_block_size = block_size;
     int local_slice_size = slice_size;
     char *local_return_val;
-    char *local_start;
-    char *global_start = mem_block;
+    char *local_start = mem_block;
     int remaining_bytes = buffer_size;
     for (int i = 0; remaining_bytes > 0 ; i++) {
-        //set starting point
-        local_start = global_start + local_block_size * i + myid * local_slice_size; //need to calculate local_slice_size afterwards? what about final iteration??
+        /* starting point for current thread in current block*/
+        local_start += (local_block_size * i) + (my_id * local_slice_size); //need to calculate local_slice_size afterwards? what about final iteration??
         
-        //assign remainder of block to final thread
-        if (myid == final_thread)
-            local_slice_size = (remaining_bytes < L3_SIZE ? remaining_bytes : L3_SIZE) - myid * slice_size;
-
+        /* assign remainder of block to final thread */
+        if (my_id == final_thread) {
+            local_slice_size = local_block_size - (my_id * slice_size);
+        }
         local_return_val = MEMCHR_IMPL(local_start, search_char, local_slice_size);
 
         //sync and check for hits
         pthread_barrier_wait(&sync_point);
-        return_vals[myid] = local_return_val;
+        return_vals[my_id] = local_return_val;
         for (int j = 0; j < NUM_THREADS; j++) {
             if (return_vals[j] != NULL) {
                 return NULL;
             }
         }
 
-        //update sizes if last block of memory is smaller than L3
+        /* loop maintenance */
         remaining_bytes = buffer_size - (i + 1) * block_size;
-        if (remaining_bytes < L3_SIZE) {
-            local_slice_size = remaining_bytes / NUM_THREADS;
+        
+        /* update sizes if last block of memory is smaller than the block_size */
+        if (remaining_bytes < block_size) {
+            local_block_size = remaining_bytes;
+            local_slice_size = local_block_size / NUM_THREADS;
         }
     }
     return NULL;
