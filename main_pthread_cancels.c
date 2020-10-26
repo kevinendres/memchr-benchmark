@@ -10,7 +10,7 @@
 #include "memchr.h"
 
 #ifndef BUFFER_SIZE
-# define BUFFER_SIZE 1000000007 
+# define BUFFER_SIZE 40000000007 
 #endif
 
 #ifndef MEM_FILLER
@@ -30,7 +30,7 @@ char *mem_block;
 char search_char;
 int chunk_size;
 int final_thread;
-int buffer_size;
+unsigned long long buffer_size;
 pthread_t tid[NUM_THREADS];
 char *return_vals[NUM_THREADS];
 
@@ -39,9 +39,13 @@ void *multi_memchr(void *vargp);
 
 int main (int argc, char **argv) {
     //inits/decs
+    printf("begin main\n");
     buffer_size = BUFFER_SIZE;
     final_thread = NUM_THREADS - 1;
-    mem_block = (char*) aligned_alloc(64, buffer_size);
+    if ((mem_block = (char*) malloc(buffer_size)) == NULL) {
+        printf("failed attempt");
+        abort();
+    }
     char fill_character = MEM_FILLER;
     search_char = SEARCH_STR; 
     struct timespec start, end;
@@ -57,6 +61,7 @@ int main (int argc, char **argv) {
     }
     *(mem_block + buffer_size - 1) = search_char;
 
+    printf("beginning threading\n");
     //threading
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -96,7 +101,8 @@ void *multi_memchr(void *vargp)
     local_return_val = MEMCHR_IMPL(local_mem_block, search_char, local_chunk_size);
     if (local_return_val != NULL) {
         return_vals[myid] = local_return_val;
-        //cancel any thread working in subsequent parts of the buffer
+        /* cancel any thread working in subsequent parts of the buffer
+            let earlier threads run in case of earlier hit */
         for (int i = myid + 1; i < NUM_THREADS; i++) {
             pthread_cancel(tid[i]);
         }

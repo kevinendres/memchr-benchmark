@@ -10,7 +10,7 @@
 #include "memchr.h"
 
 #ifndef BUFFER_SIZE
-# define BUFFER_SIZE 1000000007 
+# define BUFFER_SIZE 4000000007
 #endif
 
 #ifndef MEM_FILLER
@@ -31,7 +31,7 @@ char search_char;
 int block_size;
 int slice_size;
 int final_thread;
-int buffer_size;
+unsigned long long buffer_size;
 char *return_vals[NUM_THREADS];
 pthread_barrier_t sync_point;
 
@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
     //inits/decs
     buffer_size = BUFFER_SIZE;
     final_thread = NUM_THREADS - 1;
-    mem_block = (char*) aligned_alloc(64, buffer_size);
+    mem_block = (char*) malloc(64, buffer_size);
     //preserve starting pointer to free later
     char *mem_clear = mem_block;
     char fill_character = MEM_FILLER;
