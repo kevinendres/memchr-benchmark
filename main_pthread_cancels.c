@@ -9,64 +9,70 @@
 
 #include "memchr.h"
 
-#ifndef BUFFER_SIZE
-# define BUFFER_SIZE 1000000007 
+// #ifndef BUFFER_SIZE
+// # define BUFFER_SIZE 8000000007UL
+// #endif
+
+#ifndef FILL_CHAR
+# define FILL_CHAR 0x42
 #endif
 
-#ifndef MEM_FILLER
-# define MEM_FILLER 0x42
+#ifndef SEARCH_CHAR
+# define SEARCH_CHAR 0x41
 #endif
 
-#ifndef SEARCH_STR
-# define SEARCH_STR 0x41
-#endif
-
-#define NANOSEC_CONVERSION 1E9
-#define NUM_THREADS 10
+#define NANOSEC_CONVERSION 1000000000UL
+// #define NUM_THREADS 7
 
 /* GLOBAL */
 char *return_val;
-char *mem_block;
+char *buffer;
 char search_char;
-int chunk_size;
-int final_thread;
-int buffer_size;
-pthread_t tid[NUM_THREADS];
-char *return_vals[NUM_THREADS];
+size_t chunk_size;
+size_t num_threads;
+size_t final_thread;
+size_t buffer_size;
+char *return_vals[41];
+pthread_t tid[41];
 
 /* Prototype */
-void *multi_memchr(void *vargp);
+void *thread_memchr(void *vargp);
 
 int main (int argc, char **argv) {
+    /* argument parsing */
+    size_t opt;
+    while((opt = getopt(argc, argv, "t:d:")) != -1) {
+        switch (opt) {
+            case 't': num_threads = atol(optarg); break;
+            case 'd': buffer_size = atol(optarg); break;
+        }
+    }
     //inits/decs
-    buffer_size = BUFFER_SIZE;
-    final_thread = NUM_THREADS - 1;
-    mem_block = (char*) aligned_alloc(64, buffer_size);
-    char fill_character = MEM_FILLER;
-    search_char = SEARCH_STR; 
+    final_thread = num_threads - 1;
+    buffer = (char*) aligned_alloc(64, buffer_size);
+    char fill_char = FILL_CHAR;
+    search_char = SEARCH_CHAR; 
     struct timespec start, end;
-    long elapsed_time;
+    size_t elapsed_time;
 
     //thread related inits
-    long myid[NUM_THREADS];
-    chunk_size = buffer_size / NUM_THREADS;    //each thread does chunk_size work before syncing, except final thread
+    long myid[num_threads];
+    chunk_size = buffer_size / num_threads;    //each thread does chunk_size work before syncing, except final thread
 
     //fill memory, set last byte to search_char
-    for (int i = 0; i < buffer_size; i++) {
-        *(mem_block + i) = fill_character;
-    }
-    *(mem_block + buffer_size - 1) = search_char;
+    memset(buffer, fill_char, buffer_size);
+    *(buffer + buffer_size - 1) = search_char;
 
     //threading
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         myid[i] = i;
-        pthread_create(&tid[i], NULL, multi_memchr, &myid[i]);
+        pthread_create(&tid[i], NULL, thread_memchr, &myid[i]);
     }
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         pthread_join(tid[i], NULL);
     }
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (return_vals[i] != NULL) {
             return_val = return_vals[i];
             break;
@@ -77,27 +83,27 @@ int main (int argc, char **argv) {
     elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
     printf("%ld", elapsed_time);
 
-    free(mem_block);
+    free(buffer);
     exit(0);
 }
 
-void *multi_memchr(void *vargp)
+void *thread_memchr(void *vargp)
 {
     long myid = *((long *) vargp);
-    int local_chunk_size;
+    size_t local_chunk_size;
     char *local_return_val;
-    char *local_mem_block = mem_block + myid * chunk_size;
+    char *local_buffer = buffer + myid * chunk_size;
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     if (myid == final_thread) {
         local_chunk_size = buffer_size - myid * chunk_size;
     } else { 
         local_chunk_size = chunk_size; 
         }
-    local_return_val = MEMCHR_IMPL(local_mem_block, search_char, local_chunk_size);
+    local_return_val = MEMCHR_IMPL(local_buffer, search_char, local_chunk_size);
     if (local_return_val != NULL) {
         return_vals[myid] = local_return_val;
         //cancel any thread working in subsequent parts of the buffer
-        for (int i = myid + 1; i < NUM_THREADS; i++) {
+        for (size_t i = myid + 1; i < num_threads; i++) {
             pthread_cancel(tid[i]);
         }
     }
