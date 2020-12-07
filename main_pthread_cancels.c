@@ -6,7 +6,8 @@
 #include <time.h>
 #include <pthread.h>
 #include <unistd.h>
-
+#include <sys/resource.h>
+#include <sys/time.h>
 #include "memchr.h"
 
 // #ifndef BUFFER_SIZE
@@ -54,6 +55,9 @@ int main (int argc, char **argv) {
     search_char = SEARCH_CHAR; 
     struct timespec start, end;
     size_t elapsed_time;
+    struct rusage total_usage;
+    struct rusage start_usage;
+    struct rusage end_usage;
 
     //thread related inits
     long myid[num_threads];
@@ -62,8 +66,10 @@ int main (int argc, char **argv) {
     //fill memory, set last byte to search_char
     memset(buffer, fill_char, buffer_size);
     *(buffer + buffer_size - 1) = search_char;
-
+    printf("Finished memset\n");
+    
     //threading
+    getrusage(RUSAGE_SELF, &start_usage);
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < num_threads; i++) {
         myid[i] = i;
@@ -79,11 +85,21 @@ int main (int argc, char **argv) {
         }
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
+    if (getrusage(RUSAGE_SELF, &end_usage) == 0) {
+        printf("memchr call stats\n");
+        printf("voluntary context switches: %ld\n", end_usage.ru_nvcsw - start_usage.ru_nvcsw);
+        printf("involuntary context switches: %ld\n", end_usage.ru_nivcsw - start_usage.ru_nivcsw);
+    }
 
     elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
     printf("%ld", elapsed_time);
 
     free(buffer);
+    if (getrusage(RUSAGE_SELF, &total_usage) == 0) {
+        printf("ending program\n");
+        printf("voluntary context switches: %ld\n", total_usage.ru_nvcsw);
+        printf("involuntary context switches: %ld\n", total_usage.ru_nivcsw);
+    }
     exit(0);
 }
 

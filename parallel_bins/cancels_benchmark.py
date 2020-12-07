@@ -16,8 +16,8 @@ for exe in [glibc_exe, simple_exe]:
 
 # Experiment variables
 repetitions = 10
-thread_counts = [3, 6, 9, 10, 14, 18, 20, 23, 28, 36]
-buffer_sizes = [19000000, 25000000, 50000000, 100000000, 256000000, 500000000, 1000000000, 2000000000, 6000000000]
+thread_counts = range(1,37)
+buffer_sizes = [1000000000, 2000000000, 4000000000, 6000000000]
 
 execution_times = list()
 configurations = list()

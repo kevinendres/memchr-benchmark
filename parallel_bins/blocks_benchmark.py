@@ -16,8 +16,8 @@ for exe in [glibc_exe, simple_exe]:
 
 # Experiment variables
 repetitions = 10
-thread_counts = [3, 6, 9, 10, 14, 18, 20, 23, 28, 36]
-buffer_sizes = [19000000, 25000000, 50000000, 100000000, 256000000, 500000000, 1000000000, 2000000000, 6000000000]
+thread_counts = range(1, 37)
+buffer_sizes = [1000000000, 2000000000, 4000000000, 6000000000]
 
 execution_times = list()
 configurations = list()
@@ -30,8 +30,8 @@ for exe in executables:
         print("thread_count is " + str(thread_count))
         for buffer_size in buffer_sizes:
             print("buffer_size is " + str(buffer_size))
-            block_size = 1000
-            increment = 1000
+            block_size = 500000000
+            increment = 128000000
             while (block_size < buffer_size):
                 # Block size increment loop
                 times = list()
@@ -54,18 +54,6 @@ for exe in executables:
                 # increase block size
                 if (block_size >= 1000000000):
                     increment = 512000000
-                elif (block_size >= 128000000):
-                    increment = 128000000
-                elif (block_size >= 16000000):
-                    increment = 16000000
-                elif (block_size >= 2000000):
-                    increment = 2000000
-                elif (block_size >= 512000):
-                    increment = 512000
-                elif (block_size >= 64000):
-                    increment = 64000
-                elif (block_size >= 4000):
-                    increment = 4000
                 block_size += increment
 
 # output processing
