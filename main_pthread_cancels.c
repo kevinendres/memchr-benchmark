@@ -1,5 +1,6 @@
 //Spawns multiple threads, each calling memchr on different block of memory
 
+//#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -8,6 +9,8 @@
 #include <unistd.h>
 #include <sys/resource.h>
 #include <sys/time.h>
+#include <papi.h>
+#include <emmintrin.h>
 #include "memchr.h"
 
 // #ifndef BUFFER_SIZE
@@ -34,6 +37,7 @@ size_t num_threads;
 size_t final_thread;
 size_t buffer_size;
 char *return_vals[41];
+size_t thread_times[41];
 pthread_t tid[41];
 
 /* Prototype */
@@ -54,10 +58,10 @@ int main (int argc, char **argv) {
     char fill_char = FILL_CHAR;
     search_char = SEARCH_CHAR; 
     struct timespec start, end;
-    size_t elapsed_time;
-    struct rusage total_usage;
-    struct rusage start_usage;
-    struct rusage end_usage;
+    size_t papi_elapsed_time, thread_total_elapsed_time, r_user_elapsed_time, r_kernel_elapsed_time, max_res_set;
+    size_t soft_page_faults, hard_page_faults, IO_in_calls, IO_out_calls, vol_con_switch, invol_con_switch; 
+    struct rusage total_usage, start_usage, end_usage;
+    size_t start_time, end_time, start_cyc, end_cyc;
 
     //thread related inits
     long myid[num_threads];
@@ -66,11 +70,16 @@ int main (int argc, char **argv) {
     //fill memory, set last byte to search_char
     memset(buffer, fill_char, buffer_size);
     *(buffer + buffer_size - 1) = search_char;
-    printf("Finished memset\n");
     
+    //papi inits
+    _mm_lfence();
+    PAPI_library_init(PAPI_VER_CURRENT);
+    PAPI_thread_init(pthread_self);
+    PAPI_hl_region_begin("main");
+    //getrusage(RUSAGE_SELF, &start_usage);
+    start_time = PAPI_get_real_usec();
+
     //threading
-    getrusage(RUSAGE_SELF, &start_usage);
-    clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < num_threads; i++) {
         myid[i] = i;
         pthread_create(&tid[i], NULL, thread_memchr, &myid[i]);
@@ -84,27 +93,33 @@ int main (int argc, char **argv) {
             break;
         }
     }
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    if (getrusage(RUSAGE_SELF, &end_usage) == 0) {
-        printf("memchr call stats\n");
-        printf("voluntary context switches: %ld\n", end_usage.ru_nvcsw - start_usage.ru_nvcsw);
-        printf("involuntary context switches: %ld\n", end_usage.ru_nivcsw - start_usage.ru_nivcsw);
-    }
+    end_time = PAPI_get_real_usec();
+    //getrusage(RUSAGE_SELF, &end_usage);
+    PAPI_hl_region_end("main");
+    _mm_lfence();
 
-    elapsed_time = (end.tv_sec * NANOSEC_CONVERSION + end.tv_nsec) - (start.tv_sec * NANOSEC_CONVERSION + start.tv_nsec);
-    printf("%ld", elapsed_time);
+    /* computer rusage values */
+    papi_elapsed_time = end_time - start_time;
+//    r_user_elapsed_time = (end_usage.ru_utime.tv_sec * 1000000 + end_usage.ru_utime.tv_usec) - (start_usage.ru_utime.tv_sec * 1000000 + start_usage.ru_utime.tv_usec);
+//    r_kernel_elapsed_time = (end_usage.ru_stime.tv_sec * 1000000 + end_usage.ru_stime.tv_usec) - (start_usage.ru_stime.tv_sec * 1000000 + start_usage.ru_stime.tv_usec);
+//    max_res_set = end_usage.ru_maxrss - start_usage.ru_maxrss;
+//    soft_page_faults = end_usage.ru_minflt - start_usage.ru_minflt;
+//    hard_page_faults = end_usage.ru_majflt - start_usage.ru_majflt;
+//    IO_in_calls = end_cyc - start_cyc;
+//    IO_out_calls = end_usage.ru_oublock - start_usage.ru_oublock;
+//    vol_con_switch = end_usage.ru_nvcsw - start_usage.ru_nvcsw;
+//    invol_con_switch = end_usage.ru_nivcsw - start_usage.ru_nivcsw;
+//    printf("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld", papi_elapsed_time, r_user_elapsed_time, r_kernel_elapsed_time, max_res_set, soft_page_faults, hard_page_faults,
+//        IO_in_calls, IO_out_calls, vol_con_switch, invol_con_switch);
+    printf("%ld", papi_elapsed_time);
 
     free(buffer);
-    if (getrusage(RUSAGE_SELF, &total_usage) == 0) {
-        printf("ending program\n");
-        printf("voluntary context switches: %ld\n", total_usage.ru_nvcsw);
-        printf("involuntary context switches: %ld\n", total_usage.ru_nivcsw);
-    }
     exit(0);
 }
 
 void *thread_memchr(void *vargp)
 {
+    PAPI_hl_region_begin("threads");
     long myid = *((long *) vargp);
     size_t local_chunk_size;
     char *local_return_val;
@@ -123,5 +138,6 @@ void *thread_memchr(void *vargp)
             pthread_cancel(tid[i]);
         }
     }
+    PAPI_hl_region_end("threads");
     return NULL;
 }
