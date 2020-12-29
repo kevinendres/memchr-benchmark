@@ -13,10 +13,6 @@
 #include <emmintrin.h>
 #include "memchr.h"
 
-// #ifndef BUFFER_SIZE
-// # define BUFFER_SIZE 8000000007UL
-// #endif
-
 #ifndef FILL_CHAR
 # define FILL_CHAR 0x42
 #endif
@@ -26,7 +22,6 @@
 #endif
 
 #define NANOSEC_CONVERSION 1000000000UL
-// #define NUM_THREADS 7
 
 /* GLOBAL */
 char *return_val;
@@ -76,7 +71,6 @@ int main (int argc, char **argv) {
     PAPI_library_init(PAPI_VER_CURRENT);
     PAPI_thread_init(pthread_self);
     PAPI_hl_region_begin("main");
-    //getrusage(RUSAGE_SELF, &start_usage);
     start_time = PAPI_get_real_usec();
 
     //threading
@@ -94,23 +88,10 @@ int main (int argc, char **argv) {
         }
     }
     end_time = PAPI_get_real_usec();
-    //getrusage(RUSAGE_SELF, &end_usage);
     PAPI_hl_region_end("main");
     _mm_lfence();
 
-    /* computer rusage values */
     papi_elapsed_time = end_time - start_time;
-//    r_user_elapsed_time = (end_usage.ru_utime.tv_sec * 1000000 + end_usage.ru_utime.tv_usec) - (start_usage.ru_utime.tv_sec * 1000000 + start_usage.ru_utime.tv_usec);
-//    r_kernel_elapsed_time = (end_usage.ru_stime.tv_sec * 1000000 + end_usage.ru_stime.tv_usec) - (start_usage.ru_stime.tv_sec * 1000000 + start_usage.ru_stime.tv_usec);
-//    max_res_set = end_usage.ru_maxrss - start_usage.ru_maxrss;
-//    soft_page_faults = end_usage.ru_minflt - start_usage.ru_minflt;
-//    hard_page_faults = end_usage.ru_majflt - start_usage.ru_majflt;
-//    IO_in_calls = end_cyc - start_cyc;
-//    IO_out_calls = end_usage.ru_oublock - start_usage.ru_oublock;
-//    vol_con_switch = end_usage.ru_nvcsw - start_usage.ru_nvcsw;
-//    invol_con_switch = end_usage.ru_nivcsw - start_usage.ru_nivcsw;
-//    printf("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld", papi_elapsed_time, r_user_elapsed_time, r_kernel_elapsed_time, max_res_set, soft_page_faults, hard_page_faults,
-//        IO_in_calls, IO_out_calls, vol_con_switch, invol_con_switch);
     printf("%ld", papi_elapsed_time);
 
     free(buffer);
