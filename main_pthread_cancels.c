@@ -37,7 +37,8 @@ size_t num_threads;
 size_t final_thread;
 size_t buffer_size;
 char *return_vals[41];
-size_t thread_times[41];
+size_t thread_start_times[41];
+size_t thread_end_times[41];
 pthread_t tid[41];
 
 /* Prototype */
@@ -57,15 +58,18 @@ int main (int argc, char **argv) {
     buffer = (char*) aligned_alloc(64, buffer_size);
     char fill_char = FILL_CHAR;
     search_char = SEARCH_CHAR; 
-    struct timespec start, end;
-    size_t papi_elapsed_time, thread_total_elapsed_time, r_user_elapsed_time, r_kernel_elapsed_time, max_res_set;
+    size_t papi_elapsed_time, r_user_elapsed_time, r_kernel_elapsed_time, max_res_set;
     size_t soft_page_faults, hard_page_faults, IO_in_calls, IO_out_calls, vol_con_switch, invol_con_switch; 
-    struct rusage total_usage, start_usage, end_usage;
-    size_t start_time, end_time, start_cyc, end_cyc;
+    struct rusage start_usage, end_usage;
+    size_t start_time, end_time;
 
     //thread related inits
     long myid[num_threads];
     chunk_size = buffer_size / num_threads;    //each thread does chunk_size work before syncing, except final thread
+    for (int i = 0; i < 42; ++i) {
+        thread_start_times[i] = 0;
+        thread_end_times[i] = 0;
+    }
 
     //fill memory, set last byte to search_char
     memset(buffer, fill_char, buffer_size);
@@ -74,9 +78,7 @@ int main (int argc, char **argv) {
     //papi inits
     _mm_lfence();
     PAPI_library_init(PAPI_VER_CURRENT);
-    PAPI_thread_init(pthread_self);
-    PAPI_hl_region_begin("main");
-    //getrusage(RUSAGE_SELF, &start_usage);
+    getrusage(RUSAGE_SELF, &start_usage);
     start_time = PAPI_get_real_usec();
 
     //threading
@@ -94,33 +96,34 @@ int main (int argc, char **argv) {
         }
     }
     end_time = PAPI_get_real_usec();
-    //getrusage(RUSAGE_SELF, &end_usage);
-    PAPI_hl_region_end("main");
+    getrusage(RUSAGE_SELF, &end_usage);
     _mm_lfence();
 
     /* computer rusage values */
     papi_elapsed_time = end_time - start_time;
-//    r_user_elapsed_time = (end_usage.ru_utime.tv_sec * 1000000 + end_usage.ru_utime.tv_usec) - (start_usage.ru_utime.tv_sec * 1000000 + start_usage.ru_utime.tv_usec);
-//    r_kernel_elapsed_time = (end_usage.ru_stime.tv_sec * 1000000 + end_usage.ru_stime.tv_usec) - (start_usage.ru_stime.tv_sec * 1000000 + start_usage.ru_stime.tv_usec);
-//    max_res_set = end_usage.ru_maxrss - start_usage.ru_maxrss;
-//    soft_page_faults = end_usage.ru_minflt - start_usage.ru_minflt;
-//    hard_page_faults = end_usage.ru_majflt - start_usage.ru_majflt;
-//    IO_in_calls = end_cyc - start_cyc;
-//    IO_out_calls = end_usage.ru_oublock - start_usage.ru_oublock;
-//    vol_con_switch = end_usage.ru_nvcsw - start_usage.ru_nvcsw;
-//    invol_con_switch = end_usage.ru_nivcsw - start_usage.ru_nivcsw;
-//    printf("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld", papi_elapsed_time, r_user_elapsed_time, r_kernel_elapsed_time, max_res_set, soft_page_faults, hard_page_faults,
-//        IO_in_calls, IO_out_calls, vol_con_switch, invol_con_switch);
-    printf("%ld", papi_elapsed_time);
-
+    r_user_elapsed_time = (end_usage.ru_utime.tv_sec * 1000000 + end_usage.ru_utime.tv_usec) - (start_usage.ru_utime.tv_sec * 1000000 + start_usage.ru_utime.tv_usec);
+    r_kernel_elapsed_time = (end_usage.ru_stime.tv_sec * 1000000 + end_usage.ru_stime.tv_usec) - (start_usage.ru_stime.tv_sec * 1000000 + start_usage.ru_stime.tv_usec);
+    max_res_set = end_usage.ru_maxrss - start_usage.ru_maxrss;
+    soft_page_faults = end_usage.ru_minflt - start_usage.ru_minflt;
+    hard_page_faults = end_usage.ru_majflt - start_usage.ru_majflt;
+    IO_in_calls = end_usage.ru_inblock - start_usage.ru_inblock;
+    IO_out_calls = end_usage.ru_oublock - start_usage.ru_oublock;
+    vol_con_switch = end_usage.ru_nvcsw - start_usage.ru_nvcsw;
+    invol_con_switch = end_usage.ru_nivcsw - start_usage.ru_nivcsw;
+    printf("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,", papi_elapsed_time, r_user_elapsed_time, r_kernel_elapsed_time, max_res_set, soft_page_faults, hard_page_faults,
+        IO_in_calls, IO_out_calls, vol_con_switch, invol_con_switch);
+    for (int i = 0; i < num_threads; ++i) {
+        printf("%ld,%ld,", thread_start_times[i] - start_time, end_time - thread_end_times[i]);
+    }
     free(buffer);
     exit(0);
 }
 
 void *thread_memchr(void *vargp)
 {
-    PAPI_hl_region_begin("threads");
+    size_t thread_time = PAPI_get_real_usec();
     long myid = *((long *) vargp);
+    thread_start_times[myid] = thread_time;
     size_t local_chunk_size;
     char *local_return_val;
     char *local_buffer = buffer + myid * chunk_size;
@@ -138,6 +141,7 @@ void *thread_memchr(void *vargp)
             pthread_cancel(tid[i]);
         }
     }
-    PAPI_hl_region_end("threads");
+    thread_time = PAPI_get_real_usec();
+    thread_end_times[myid] = thread_time;
     return NULL;
 }
