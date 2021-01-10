@@ -11,7 +11,8 @@
 #include <sys/time.h>
 #include <papi.h>
 #include <emmintrin.h>
-#include "memchr.h"
+#include <semaphore.h>
+#include "memchr_avx2_hacked.h"
 
 // #ifndef BUFFER_SIZE
 // # define BUFFER_SIZE 8000000007UL
@@ -38,8 +39,11 @@ size_t final_thread;
 size_t buffer_size;
 char *return_vals[41];
 size_t thread_start_times[41];
+size_t thread_warmedup_times[41];
 size_t thread_end_times[41];
 pthread_t tid[41];
+sem_t join;
+int event_set = PAPI_NULL;
 
 /* Prototype */
 void *thread_memchr(void *vargp);
@@ -62,14 +66,14 @@ int main (int argc, char **argv) {
     size_t soft_page_faults, hard_page_faults, IO_in_calls, IO_out_calls, vol_con_switch, invol_con_switch; 
     struct rusage start_usage, end_usage;
     size_t start_time, end_time;
+    pthread_attr_t detach_attr;
 
     //thread related inits
     long myid[num_threads];
     chunk_size = buffer_size / num_threads;    //each thread does chunk_size work before syncing, except final thread
-    for (int i = 0; i < 42; ++i) {
-        thread_start_times[i] = 0;
-        thread_end_times[i] = 0;
-    }
+    pthread_attr_init(&detach_attr);
+    pthread_attr_setdetachstate(&detach_attr, PTHREAD_CREATE_DETACHED);
+    sem_init(&join, 0, 1);
 
     //fill memory, set last byte to search_char
     memset(buffer, fill_char, buffer_size);
@@ -78,16 +82,29 @@ int main (int argc, char **argv) {
     //papi inits
     _mm_lfence();
     PAPI_library_init(PAPI_VER_CURRENT);
+    PAPI_create_eventset(&event_set);
+    PAPI_add_event(event_set, PAPI_L1_DCM);
+    PAPI_add_event(event_set, PAPI_L1_ICM);
+    PAPI_add_event(event_set, PAPI_L2_DCM);
+    PAPI_add_event(event_set, PAPI_L2_ICM);
+    PAPI_add_event(event_set, PAPI_L1_TCM);
+    PAPI_add_event(event_set, PAPI_L2_TCM);
+    PAPI_add_event(event_set, PAPI_L3_TCM);
+    PAPI_add_event(event_set, PAPI_CA_SNP);
+    PAPI_add_event(event_set, PAPI_CA_SHR);
+    PAPI_add_event(event_set, PAPI_CA_CLN);
     getrusage(RUSAGE_SELF, &start_usage);
     start_time = PAPI_get_real_usec();
 
     //threading
     for (int i = 0; i < num_threads; i++) {
         myid[i] = i;
-        pthread_create(&tid[i], NULL, thread_memchr, &myid[i]);
+        pthread_create(&tid[i], &detach_attr, thread_memchr, &myid[i]);
     }
+
+    //insert semaphore code for syncing up here
     for (int i = 0; i < num_threads; i++) {
-        pthread_join(tid[i], NULL);
+        pthread_join()
     }
     for (int i = 0; i < num_threads; i++) {
         if (return_vals[i] != NULL) {
@@ -110,11 +127,13 @@ int main (int argc, char **argv) {
     IO_out_calls = end_usage.ru_oublock - start_usage.ru_oublock;
     vol_con_switch = end_usage.ru_nvcsw - start_usage.ru_nvcsw;
     invol_con_switch = end_usage.ru_nivcsw - start_usage.ru_nivcsw;
-    printf("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,", papi_elapsed_time, r_user_elapsed_time, r_kernel_elapsed_time, max_res_set, soft_page_faults, hard_page_faults,
+    printf("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld", papi_elapsed_time, r_user_elapsed_time, r_kernel_elapsed_time, max_res_set, soft_page_faults, hard_page_faults,
         IO_in_calls, IO_out_calls, vol_con_switch, invol_con_switch);
     for (int i = 0; i < num_threads; ++i) {
-        printf("%ld,%ld,", thread_start_times[i] - start_time, end_time - thread_end_times[i]);
+        printf(",%ld,%ld,%ld", thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i], end_time - thread_end_times[i]);
     }
+
+    sem_destroy(&join);
     free(buffer);
     exit(0);
 }
@@ -127,13 +146,16 @@ void *thread_memchr(void *vargp)
     size_t local_chunk_size;
     char *local_return_val;
     char *local_buffer = buffer + myid * chunk_size;
+    size_t warmup_start_time;
+    size_t warmup_length;
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     if (myid == final_thread) {
         local_chunk_size = buffer_size - myid * chunk_size;
     } else { 
         local_chunk_size = chunk_size; 
         }
-    local_return_val = MEMCHR_IMPL(local_buffer, search_char, local_chunk_size);
+    warmup_length = ((local_chunk_size / 10) / 128) * 128;    //ensure that the warmup length is a multiple of 4 * VEC_SIZE
+    local_return_val = MEMCHR_IMPL(local_buffer, search_char, local_chunk_size, warmup_length, &warmup_start_time, event_set);
     if (local_return_val != NULL) {
         return_vals[myid] = local_return_val;
         //cancel any thread working in subsequent parts of the buffer
@@ -143,5 +165,6 @@ void *thread_memchr(void *vargp)
     }
     thread_time = PAPI_get_real_usec();
     thread_end_times[myid] = thread_time;
+    thread_warmedup_times[myid] = warmup_start_time;
     return NULL;
 }

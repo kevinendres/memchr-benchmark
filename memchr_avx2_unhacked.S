@@ -40,10 +40,6 @@
 	.text
 	.globl  MEMCHR_IMPL
 ENTRY (MEMCHR)
-	/* move 4th argument, the warmup length, to "safe" register
-	No need to touch 5th and 6th args as r8-9 aren't used */
-	movq	%rcx, %r10
-
 # ifndef USE_AS_RAWMEMCHR
 	/* Check for zero length.  */
 	test	%RDX_LP, %RDX_LP
@@ -195,30 +191,11 @@ L(loop_4x_vec):
 
 	addq	$(VEC_SIZE * 4), %rdi
 
-//# ifdef USE_AS_RAWMEMCHR
-//	jmp	L(loop_4x_vec)
-//# else
-//	subq	$(VEC_SIZE * 4), %rdx
-//	ja	L(loop_4x_vec)
-
-	/* begin hacked section
-	Subract work done from warmup size. when */
-	subq	$(VEC_SIZE * 4), %r10
-	je		L(call)
-L(test_rdx):
+# ifdef USE_AS_RAWMEMCHR
+	jmp	L(loop_4x_vec)
+# else
 	subq	$(VEC_SIZE * 4), %rdx
-	ja		L(loop_4x_vec)
-	jmp		L(last_4x_vec_or_less)
-L(call):
-	/* preserve RDI */
-	movq	%rdi, %r11
-	call	PAPI_get_real_usec
-	movq	%rax, (%r8)
-	movq	%r9, %rdi
-	call	PAPI_start
-	movq	%r11, %rdi
-	jmp		test_rdx
-
+	ja	L(loop_4x_vec)
 
 L(last_4x_vec_or_less):
 	/* Less than 4 * VEC and aligned to VEC_SIZE.  */
