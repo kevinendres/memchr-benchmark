@@ -211,13 +211,15 @@ L(test_rdx):
 	jmp		L(last_4x_vec_or_less)
 L(call):
 	/* preserve RDI */
-	movq	%rdi, %r11
+	movq	%rdi, %r12
+	movq	%r8, %r13		//save warm_up_time mem address
+	movq	%r9, %r14		//save event set
 	call	PAPI_get_real_usec
-	movq	%rax, (%r8)
-	movq	%r9, %rdi
+	movq	%rax, (%r13)		//put result into memory
+	movq	%r14, %rdi		//move event set into 1st argument position
 	call	PAPI_start
-	movq	%r11, %rdi
-	jmp		test_rdx
+	movq	%r12, %rdi		//replace original RDI
+	jmp		L(test_rdx)
 
 
 L(last_4x_vec_or_less):
@@ -320,7 +322,8 @@ L(zero):
 L(null):
 	xorl	%eax, %eax
 	ret
-# endif
+	/* endif related to ifdef using RAW_MEMCHR */
+//# endif
 
 	.p2align 4
 L(first_vec_x0):
