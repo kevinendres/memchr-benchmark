@@ -156,8 +156,8 @@ void *thread_memchr(void *vargp)
     thread_time = PAPI_get_real_usec();
     local_return_val = MEMCHR_IMPL(local_buffer, search_char, local_chunk_size, warmup_length, &warmup_start_time, event_set);
     size_t thread_time2 = PAPI_get_real_usec();
-    printf("difference time %ld\n", thread_time2 - thread_time);
-    printf("post-memchr call\twarmup start time: %ld\n", warmup_start_time);
+    printf("time spend in memchr call: %ld\n", thread_time2 - thread_time);
+    printf("post-memchr call\twarmup start time monotonic value: %ld\n", warmup_start_time);
     if (local_return_val != NULL) {
         return_vals[myid] = local_return_val;
         //cancel any thread working in subsequent parts of the buffer
@@ -169,10 +169,10 @@ void *thread_memchr(void *vargp)
     thread_end_times[myid] = thread_time;
     printf("end thread time: %ld\n", thread_time);
     thread_warmedup_times[myid] = warmup_start_time;
-    printf("pre event resolution\n");
     PAPI_read(event_set, counters);
+    printf("counters:\n");
     for (int i = 0; i < 10; ++i) {
-        printf("t%ld\t%lld\n", myid, counters[i]);
+        printf("thread %ld\t%lld\n", myid, counters[i]);
     }
     return NULL;
 }

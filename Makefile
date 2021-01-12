@@ -135,8 +135,12 @@ pthread_cancels : main_pthread_cancels.c $(OBJ_FILES)
 	$(CC) $(CFLAGS) main_pthread_cancels.c glibc_unroll_O2.o -pthread -o ./parallel_bins/cancels/memchr_glibc_unroll_O2
 	$(CC) $(CFLAGS) main_pthread_cancels.c simple_unroll_O2.o -pthread -o ./parallel_bins/cancels/memchr_simple_unroll_O2
 
-BINS = memchr_avx2 memchr_sse memchr_simple memchr_glibc memchr_glibc_* memchr_simple_* simd_overhead_avx2 simd_overhead_sse throughput memchr_threaded
+BINS = memchr_avx2 memchr_sse memchr_simple memchr_glibc memchr_glibc_* memchr_simple_* simd_overhead_avx2 simd_overhead_sse throughput memchr_threaded memchr_avx2_hacked
 .PHONY : clean
+
+hack : memchr_avx2.o
+	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_avx2.o -pthread -lpapi -o memchr_avx2_hacked
+
 clean : 
 	rm -f $(BINS) *.o
 	rm -f ./parallel_bins/blocks/*
