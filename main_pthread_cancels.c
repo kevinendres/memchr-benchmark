@@ -120,44 +120,55 @@ int main (int argc, char **argv) {
     exit(0);
 }
 
+typedef struct {
+    int event_set;
+    size_t warmup_start_time;
+} thread_info_t;
+
+void thread_memchr_callback (void *arg) {
+  thread_info_t* pinfo = arg;
+  pinfo->warmup_start_time = PAPI_get_real_usec();
+  PAPI_start (pinfo->event_set);
+  printf ("hello\n");
+}
+
 void *thread_memchr(void *vargp)
 {
     printf("thread test\n");
-    int event_set = PAPI_NULL;
+    thread_info_t info = {PAPI_NULL, -1};
     long long counters[10];
     PAPI_thread_init(pthread_self);
-    PAPI_create_eventset(&event_set);
-    PAPI_add_event(event_set, PAPI_L1_DCM);
-    PAPI_add_event(event_set, PAPI_L1_ICM);
-    PAPI_add_event(event_set, PAPI_L2_DCM);
-    PAPI_add_event(event_set, PAPI_L2_ICM);
-    PAPI_add_event(event_set, PAPI_L1_TCM);
-    PAPI_add_event(event_set, PAPI_L2_TCM);
-    PAPI_add_event(event_set, PAPI_L3_TCM);
-    PAPI_add_event(event_set, PAPI_CA_SNP);
-    PAPI_add_event(event_set, PAPI_CA_SHR);
-    PAPI_add_event(event_set, PAPI_CA_CLN);
+    PAPI_create_eventset(&(info.event_set));
+    PAPI_add_event(info.event_set, PAPI_L1_DCM);
+    PAPI_add_event(info.event_set, PAPI_L1_ICM);
+    PAPI_add_event(info.event_set, PAPI_L2_DCM);
+    PAPI_add_event(info.event_set, PAPI_L2_ICM);
+    PAPI_add_event(info.event_set, PAPI_L1_TCM);
+    PAPI_add_event(info.event_set, PAPI_L2_TCM);
+    PAPI_add_event(info.event_set, PAPI_L3_TCM);
+    PAPI_add_event(info.event_set, PAPI_CA_SNP);
+    PAPI_add_event(info.event_set, PAPI_CA_SHR);
+    PAPI_add_event(info.event_set, PAPI_CA_CLN);
     size_t thread_time = PAPI_get_real_usec();
     long myid = *((long *) vargp);
     thread_start_times[myid] = thread_time;
     size_t local_chunk_size;
     char *local_return_val;
     char *local_buffer = buffer + myid * chunk_size;
-    size_t warmup_start_time;
     size_t warmup_length;
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     if (myid == final_thread) {
         local_chunk_size = buffer_size - myid * chunk_size;
     } else { 
-        local_chunk_size = chunk_size; 
+        local_chunk_size = chunk_size;
         }
     warmup_length = ((local_chunk_size / 10) / 128) * 128;    //ensure that the warmup length is a multiple of 4 * VEC_SIZE
-    printf("pre-memchr call\twarmup start time: %ld\n", warmup_start_time);
+    printf ("warmup_length: %ld\n", warmup_length);
     thread_time = PAPI_get_real_usec();
-    local_return_val = MEMCHR_IMPL(local_buffer, search_char, local_chunk_size, warmup_length, &warmup_start_time, event_set);
+    local_return_val = MEMCHR_IMPL(local_buffer, search_char, local_chunk_size, warmup_length, &thread_memchr_callback, &info);
     size_t thread_time2 = PAPI_get_real_usec();
     printf("time spend in memchr call: %ld\n", thread_time2 - thread_time);
-    printf("post-memchr call\twarmup start time monotonic value: %ld\n", warmup_start_time);
+    printf("post-memchr call\twarmup start time monotonic value: %ld\n", info.warmup_start_time);
     if (local_return_val != NULL) {
         return_vals[myid] = local_return_val;
         //cancel any thread working in subsequent parts of the buffer
@@ -168,8 +179,8 @@ void *thread_memchr(void *vargp)
     thread_time = PAPI_get_real_usec();
     thread_end_times[myid] = thread_time;
     printf("end thread time: %ld\n", thread_time);
-    thread_warmedup_times[myid] = warmup_start_time;
-    PAPI_read(event_set, counters);
+    thread_warmedup_times[myid] = info.warmup_start_time;
+    PAPI_read(info.event_set, counters);
     printf("counters:\n");
     for (int i = 0; i < 10; ++i) {
         printf("thread %ld\t%lld\n", myid, counters[i]);

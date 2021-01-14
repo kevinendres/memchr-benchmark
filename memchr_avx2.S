@@ -42,7 +42,11 @@
 ENTRY (MEMCHR)
 	/* move 4th argument, the warmup length, to "safe" register
 	No need to touch 5th and 6th args as r8-9 aren't used */
-	movq	%rcx, %r10
+# define WUP r12 // callee-saved
+# define CBK r8  // caller-saved, but used only once
+# define ARG r9  // caller-saved, but used only once
+	movq	%rcx, %WUP
+
 
 # ifndef USE_AS_RAWMEMCHR
 	/* Check for zero length.  */
@@ -203,7 +207,7 @@ L(loop_4x_vec):
 
 	/* begin hacked section
 	Subract work done from warmup size. when */
-	subq	$(VEC_SIZE * 4), %r10
+	subq	$(VEC_SIZE * 4), %WUP
 	je		L(call)
 L(test_rdx):
 	subq	$(VEC_SIZE * 4), %rdx
@@ -211,16 +215,13 @@ L(test_rdx):
 	jmp		L(last_4x_vec_or_less)
 L(call):
 	/* preserve RDI */
-	movq	%rdi, %r12
-	movq	%r8, %r13		//save warm_up_time mem address
-	movq	%r9, %r14		//save event set
-	call	PAPI_get_real_usec
-	movq	%rax, (%r13)		//put result into memory
-	movq	%r14, %rdi		//move event set into 1st argument position
-	call	PAPI_start
-	movq	%r12, %rdi		//replace original RDI
+	push    %rdx
+	push    %rdi
+	mov     %ARG, %rdi
+	call    *%CBK
+	pop     %rdi
+	pop     %rdx
 	jmp		L(test_rdx)
-
 
 L(last_4x_vec_or_less):
 	/* Less than 4 * VEC and aligned to VEC_SIZE.  */
