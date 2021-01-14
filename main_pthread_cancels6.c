@@ -110,7 +110,7 @@ int main (int argc, char **argv) {
     //Papi timing printouts
     for (size_t i = 0; i < num_threads; ++i) {
         printf("%ld,%ld,%ld,%ld,", thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i], thread_end_times[i] - thread_warmedup_times[i], end_time - thread_end_times[i]);
-        for (size_t j = 0; j < num_threads * 10; ++j) {
+        for (size_t j = i * 9; j < (i + 1) * 9; ++j) {
             printf("%lld,", counters[j]);
         }
     }
@@ -137,16 +137,15 @@ void *thread_memchr(void *vargp)
     thread_info_t info = {PAPI_NULL, -1};
     PAPI_thread_init(pthread_self);
     PAPI_create_eventset(&(info.event_set));
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
+    PAPI_add_event(info.event_set, PAPI_L2_TCR);
+    PAPI_add_event(info.event_set, PAPI_L3_TCR );
+    PAPI_add_event(info.event_set, PAPI_L2_TCW );
+    PAPI_add_event(info.event_set, PAPI_L3_TCW );
+    PAPI_add_event(info.event_set, PAPI_SP_OPS );
+    PAPI_add_event(info.event_set, PAPI_DP_OPS );
+    PAPI_add_event(info.event_set, PAPI_VEC_SP );
+    PAPI_add_event(info.event_set, PAPI_VEC_DP );
+    PAPI_add_event(info.event_set, PAPI_REF_CYC);
     size_t thread_time = PAPI_get_real_usec();
     long myid = *((long *) vargp);
     thread_start_times[myid] = thread_time;
@@ -173,7 +172,7 @@ void *thread_memchr(void *vargp)
     thread_time = PAPI_get_real_usec();
     thread_end_times[myid] = thread_time;
     thread_warmedup_times[myid] = info.warmup_start_time;
-    PAPI_read(info.event_set, counters + (myid * 10));
+    PAPI_read(info.event_set, counters + (myid * 9));
     if (sem_trywait(&active) < 0) {
         sem_post(&done);
     }

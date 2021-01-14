@@ -139,7 +139,12 @@ BINS = memchr_avx2 memchr_sse memchr_simple memchr_glibc memchr_glibc_* memchr_s
 .PHONY : clean
 
 hack : memchr_avx2.o
-	$(CC) $(CFLAGS) main_pthread_cancels.c memchr_avx2.o -pthread -lpapi -o memchr_avx2_hacked
+	$(CC) $(CFLAGS) main_pthread_cancels1.c memchr_avx2.o -pthread -lpapi -o ./parallel_bins/cancels/memchr_avx2_hacked_set1
+	$(CC) $(CFLAGS) main_pthread_cancels2.c memchr_avx2.o -pthread -lpapi -o ./parallel_bins/cancels/memchr_avx2_hacked_set2
+	$(CC) $(CFLAGS) main_pthread_cancels3.c memchr_avx2.o -pthread -lpapi -o ./parallel_bins/cancels/memchr_avx2_hacked_set3
+	$(CC) $(CFLAGS) main_pthread_cancels4.c memchr_avx2.o -pthread -lpapi -o ./parallel_bins/cancels/memchr_avx2_hacked_set4
+	$(CC) $(CFLAGS) main_pthread_cancels5.c memchr_avx2.o -pthread -lpapi -o ./parallel_bins/cancels/memchr_avx2_hacked_set5
+	$(CC) $(CFLAGS) main_pthread_cancels6.c memchr_avx2.o -pthread -lpapi -o ./parallel_bins/cancels/memchr_avx2_hacked_set6
 
 clean : 
 	rm -f $(BINS) *.o

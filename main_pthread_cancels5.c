@@ -110,7 +110,7 @@ int main (int argc, char **argv) {
     //Papi timing printouts
     for (size_t i = 0; i < num_threads; ++i) {
         printf("%ld,%ld,%ld,%ld,", thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i], thread_end_times[i] - thread_warmedup_times[i], end_time - thread_end_times[i]);
-        for (size_t j = 0; j < num_threads * 10; ++j) {
+        for (size_t j = i * 10; j < (i + 1) * 10; ++j) {
             printf("%lld,", counters[j]);
         }
     }
@@ -137,16 +137,16 @@ void *thread_memchr(void *vargp)
     thread_info_t info = {PAPI_NULL, -1};
     PAPI_thread_init(pthread_self);
     PAPI_create_eventset(&(info.event_set));
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
+    PAPI_add_event(info.event_set, PAPI_L3_DCR);
+    PAPI_add_event(info.event_set, PAPI_L2_DCW);
+    PAPI_add_event(info.event_set, PAPI_L3_DCW);
+    PAPI_add_event(info.event_set, PAPI_L2_ICH);
+    PAPI_add_event(info.event_set, PAPI_L2_ICA);
+    PAPI_add_event(info.event_set, PAPI_L3_ICA);
+    PAPI_add_event(info.event_set, PAPI_L2_ICR);
+    PAPI_add_event(info.event_set, PAPI_L3_ICR);
+    PAPI_add_event(info.event_set, PAPI_L2_TCA);
+    PAPI_add_event(info.event_set, PAPI_L3_TCA);
     size_t thread_time = PAPI_get_real_usec();
     long myid = *((long *) vargp);
     thread_start_times[myid] = thread_time;
