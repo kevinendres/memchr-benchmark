@@ -105,13 +105,13 @@ int main (int argc, char **argv) {
 
     /* computer times */
     papi_elapsed_time = end_time - start_time;
-    printf("%ld,", papi_elapsed_time);
+    printf("%ld", papi_elapsed_time);
 
     //Papi timing printouts
     for (size_t i = 0; i < num_threads; ++i) {
-        printf("%ld,%ld,%ld,%ld,", thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i], thread_end_times[i] - thread_warmedup_times[i], end_time - thread_end_times[i]);
+        printf(",%ld,%ld,%ld,%ld", thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i], thread_end_times[i] - thread_warmedup_times[i], end_time - thread_end_times[i]);
         for (size_t j = i * 10; j < (i + 1) * 10; ++j) {
-            printf("%lld,", counters[j]);
+            printf(",%lld", counters[j]);
         }
     }
 
