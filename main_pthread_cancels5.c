@@ -12,11 +12,8 @@
 #include <papi.h>
 #include <emmintrin.h>
 #include <semaphore.h>
+#include <stdatomic.h>
 #include "memchr_avx2_hacked.h"
-
-// #ifndef BUFFER_SIZE
-// # define BUFFER_SIZE 8000000007UL
-// #endif
 
 #ifndef FILL_CHAR
 # define FILL_CHAR 0x42
@@ -43,7 +40,7 @@ size_t thread_warmedup_times[41];
 size_t thread_end_times[41];
 pthread_t tid[41];
 long long counters[401];
-sem_t active;
+atomic_int active;
 sem_t done;
 int event_set = PAPI_NULL;
 
@@ -67,13 +64,14 @@ int main (int argc, char **argv) {
     size_t papi_elapsed_time;
     size_t start_time, end_time;
     pthread_attr_t detach_attr;
+    int procid = getpid();
 
     //thread related inits
     long myid[num_threads];
     chunk_size = buffer_size / num_threads;    //each thread does chunk_size work before syncing, except final thread
     pthread_attr_init(&detach_attr);
     pthread_attr_setdetachstate(&detach_attr, PTHREAD_CREATE_DETACHED);
-    sem_init(&active, 0, num_threads - 1);
+    atomic_init(&active, num_threads - 1);
     sem_init(&done, 0, 0);
 
     //fill memory, set last byte to search_char
@@ -105,17 +103,21 @@ int main (int argc, char **argv) {
 
     /* computer times */
     papi_elapsed_time = end_time - start_time;
-    printf("%ld", papi_elapsed_time);
+    printf("main,%d,%ld\n", procid, papi_elapsed_time);
 
     //Papi timing printouts
     for (size_t i = 0; i < num_threads; ++i) {
-        printf(",%ld,%ld,%ld,%ld", thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i], thread_end_times[i] - thread_warmedup_times[i], end_time - thread_end_times[i]);
+        printf("thread %ld,%d,%ld,%ld,%ld,%ld,%ld", i + 1, procid, papi_elapsed_time, thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i], thread_end_times[i] - thread_warmedup_times[i], end_time - thread_end_times[i]);
+        printf(",,,,,,,,,,");
+        printf(",,,,,,,,,,");
+        printf(",,,,,,,,,,");
+        printf(",,,,,,,,,,");
         for (size_t j = i * 10; j < (i + 1) * 10; ++j) {
             printf(",%lld", counters[j]);
         }
+        printf("\n");
     }
 
-    sem_destroy(&active);
     sem_destroy(&done);
     free(buffer);
     exit(0);
@@ -174,7 +176,7 @@ void *thread_memchr(void *vargp)
     thread_end_times[myid] = thread_time;
     thread_warmedup_times[myid] = info.warmup_start_time;
     PAPI_read(info.event_set, counters + (myid * 10));
-    if (sem_trywait(&active) < 0) {
+    if (atomic_fetch_sub(&active, 1) == 0) {
         sem_post(&done);
     }
     return NULL;
