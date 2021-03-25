@@ -1,6 +1,6 @@
 //Spawns multiple threads, each calling memchr on different block of memory
 
-#define _GNU_SOURCE
+//#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -13,7 +13,6 @@
 #include <emmintrin.h>
 #include <stdatomic.h>
 #include <semaphore.h>
-#include <sched.h>
 #include "memchr_avx2_hacked.h"
 
 #ifndef FILL_CHAR
@@ -135,16 +134,6 @@ void thread_memchr_callback (void *arg) {
 
 void *thread_memchr(void *vargp)
 {
-    long myid = *((long *) vargp);
-
-    //set thread affinity
-    int core_id = myid % 10;
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(core_id, &cpuset);
-    pthread_t current_thread = pthread_self();
-    pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
-
     thread_info_t info = {PAPI_NULL, -1};
     PAPI_thread_init(pthread_self);
     PAPI_create_eventset(&(info.event_set));
@@ -159,7 +148,7 @@ void *thread_memchr(void *vargp)
     PAPI_add_event(info.event_set, PAPI_CA_SHR);
     PAPI_add_event(info.event_set, PAPI_CA_CLN);
     size_t thread_time = PAPI_get_real_usec();
-
+    long myid = *((long *) vargp);
     thread_start_times[myid] = thread_time;
     size_t local_chunk_size;
     char *local_return_val;

@@ -1,0 +1,5 @@
+avx2 = files('memchr_avx2_unhacked.S')
+avx2_hacked = files('memchr_avx2_hacked.S')
+avx512 = files('memchr_avx512.c')
+sse = files('memchr_sse.S')
+throughput = files('throughput_test.S')

@@ -199,12 +199,6 @@ L(loop_4x_vec):
 
 	addq	$(VEC_SIZE * 4), %rdi
 
-//# ifdef USE_AS_RAWMEMCHR
-//	jmp	L(loop_4x_vec)
-//# else
-//	subq	$(VEC_SIZE * 4), %rdx
-//	ja	L(loop_4x_vec)
-
 	/* begin hacked section
 	Subract work done from warmup size. when */
 	subq	$(VEC_SIZE * 4), %WUP
