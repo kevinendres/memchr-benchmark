@@ -12,7 +12,7 @@
 #define ctz(x) __builtin_ctz(x)
 
 
-void * MEMCHR_IMPL(void * buffer, char c, size_t length){
+void * memchr_avx512(void * buffer, char c, size_t length){
 	vector_t * buffer_cast =  (vector_t *) buffer;
 	vector_t vmask = load_mask(c);
 	mask_t mask;

@@ -1,10 +1,7 @@
 main = files('main.c')
-avx512 = files('memchrc_avx512.c')
-avx2 = files('memchr_avx2.S')
+memchr_h = files('memchr.h')
+project_sources += main
 
-
-avx2 = executable('avx2',
-                  main,
-                  avx2,
-                  include_directories : inc,
-                 dependencies : pthreads)
+#subdir('arm')
+subdir('generics')
+subdir('x86-64')

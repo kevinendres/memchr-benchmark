@@ -25,14 +25,14 @@
 # define MEMCHR		wmemchr
 # define PCMPEQ		pcmpeqd
 #else
-# define MEMCHR		MEMCHR_IMPL
+# define MEMCHR		memchr_sse
 # define PCMPEQ		pcmpeqb
 #endif
 
 /* fast SSE2 version with using pmaxub and 64 byte loop */
 
 	.text
-	.globl  MEMCHR_IMPL
+	.globl  memchr_sse
 ENTRY(MEMCHR)
 	movd	%esi, %xmm1
 	mov	%edi, %ecx

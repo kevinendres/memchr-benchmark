@@ -1,6 +1,6 @@
+
 //Spawns multiple threads, each calling memchr on different block of memory
 
-//#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -11,23 +11,12 @@
 #include <sys/time.h>
 #include <papi.h>
 #include <emmintrin.h>
+#include <stdatomic.h>
 #include <semaphore.h>
-#include "memchr_avx2_hacked.h"
+#include "memchr.h"
 
-// #ifndef BUFFER_SIZE
-// # define BUFFER_SIZE 8000000007UL
-// #endif
-
-#ifndef FILL_CHAR
-# define FILL_CHAR 0x42
-#endif
-
-#ifndef SEARCH_CHAR
-# define SEARCH_CHAR 0x41
-#endif
-
-#define NANOSEC_CONVERSION 1000000000UL
-// #define NUM_THREADS 7
+#define FILL_CHAR 0x42
+#define SEARCH_CHAR 0x41
 
 /* GLOBAL */
 char *return_val;
@@ -43,43 +32,46 @@ size_t thread_warmedup_times[41];
 size_t thread_end_times[41];
 pthread_t tid[41];
 long long counters[401];
-sem_t active;
+atomic_int active;
 sem_t done;
-int event_set = PAPI_NULL;
-
-/* Prototype */
-void *thread_memchr(void *vargp);
+char *implem_arg;
+func_ptr_t memchr_implem;
 
 int main (int argc, char **argv) {
     /* argument parsing */
     size_t opt;
-    while((opt = getopt(argc, argv, "t:d:")) != -1) {
+    while((opt = getopt(argc, argv, "t:d:i:")) != -1) {
         switch (opt) {
             case 't': num_threads = atol(optarg); break;
             case 'd': buffer_size = atol(optarg); break;
+            case 'i': implem_arg = strdup(optarg); break;
         }
     }
+
+    memchr_implem = select_implementation(implem_arg);
+
     //inits/decs
     final_thread = num_threads - 1;
     buffer = (char*) aligned_alloc(64, buffer_size);
     char fill_char = FILL_CHAR;
-    search_char = SEARCH_CHAR; 
+    search_char = SEARCH_CHAR;
     size_t papi_elapsed_time;
     size_t start_time, end_time;
     pthread_attr_t detach_attr;
+    int procid = getpid();
 
     //thread related inits
     long myid[num_threads];
-    chunk_size = buffer_size / num_threads;    //each thread does chunk_size work before syncing, except final thread
+    chunk_size = buffer_size / num_threads;    //each thread does chunk_size work, except final thread
     pthread_attr_init(&detach_attr);
     pthread_attr_setdetachstate(&detach_attr, PTHREAD_CREATE_DETACHED);
-    sem_init(&active, 0, num_threads - 1);
+    atomic_init(&active, num_threads - 1);
     sem_init(&done, 0, 0);
 
     //fill memory, set last byte to search_char
     memset(buffer, fill_char, buffer_size);
     *(buffer + buffer_size - 1) = search_char;
-    
+
     //papi inits
     _mm_lfence();
     PAPI_library_init(PAPI_VER_CURRENT);
@@ -91,7 +83,7 @@ int main (int argc, char **argv) {
         pthread_create(&tid[i], &detach_attr, thread_memchr, &myid[i]);
     }
 
-    //insert semaphore code for syncing up here
+    //sync
     sem_wait(&done);
     //look for first search hit from memchr
     for (size_t i = 0; i < num_threads; i++) {
@@ -105,64 +97,54 @@ int main (int argc, char **argv) {
 
     /* computer times */
     papi_elapsed_time = end_time - start_time;
-    printf("%ld,", papi_elapsed_time);
+    printf("main,%d,%ld\n", procid, papi_elapsed_time);
 
     //Papi timing printouts
     for (size_t i = 0; i < num_threads; ++i) {
-        printf("%ld,%ld,%ld,%ld,", thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i], thread_end_times[i] - thread_warmedup_times[i], end_time - thread_end_times[i]);
-        for (size_t j = 0; j < num_threads * 10; ++j) {
-            printf("%lld,", counters[j]);
+        printf("thread %ld,%d,%ld,%ld,%ld,%ld,%ld", i + 1, procid, papi_elapsed_time,
+               thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i],
+               thread_end_times[i] - thread_warmedup_times[i], end_time - thread_end_times[i]);
+        for (size_t j = i * 10; j < (i + 1) * 10; ++j) {
+            printf(",%lld", counters[j]);
         }
+        printf("\n");
     }
 
-    sem_destroy(&active);
     sem_destroy(&done);
     free(buffer);
     exit(0);
 }
 
-typedef struct {
-    int event_set;
-    size_t warmup_start_time;
-} thread_info_t;
-
-void thread_memchr_callback (void *arg) {
-  thread_info_t* pinfo = arg;
-  pinfo->warmup_start_time = PAPI_get_real_usec();
-  PAPI_start (pinfo->event_set);
-}
-
 void *thread_memchr(void *vargp)
 {
-    thread_info_t info = {PAPI_NULL, -1};
+    int event_set = PAPI_NULL;
     PAPI_thread_init(pthread_self);
-    PAPI_create_eventset(&(info.event_set));
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
-    PAPI_add_event(info.event_set, );
+    PAPI_create_eventset(&(event_set));
+    PAPI_add_event(event_set, PAPI_L1_DCM);
+    PAPI_add_event(event_set, PAPI_L1_ICM);
+    PAPI_add_event(event_set, PAPI_L2_DCM);
+    PAPI_add_event(event_set, PAPI_L2_ICM);
+    PAPI_add_event(event_set, PAPI_L1_TCM);
+    PAPI_add_event(event_set, PAPI_L2_TCM);
+    PAPI_add_event(event_set, PAPI_L3_TCM);
+    PAPI_add_event(event_set, PAPI_CA_SNP);
+    PAPI_add_event(event_set, PAPI_CA_SHR);
+    PAPI_add_event(event_set, PAPI_CA_CLN);
     size_t thread_time = PAPI_get_real_usec();
     long myid = *((long *) vargp);
     thread_start_times[myid] = thread_time;
     size_t local_chunk_size;
     char *local_return_val;
     char *local_buffer = buffer + myid * chunk_size;
-    size_t warmup_length;
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     if (myid == final_thread) {
         local_chunk_size = buffer_size - myid * chunk_size;
-    } else { 
+    } else {
         local_chunk_size = chunk_size;
         }
-    warmup_length = ((local_chunk_size / 10) / 128) * 128;    //ensure that the warmup length is a multiple of 4 * VEC_SIZE
     thread_time = PAPI_get_real_usec();
-    local_return_val = MEMCHR_IMPL(local_buffer, search_char, local_chunk_size, warmup_length, &thread_memchr_callback, &info);
+    PAPI_start(event_set);
+    local_return_val = memchr_implem(local_buffer, search_char, local_chunk_size);
     if (local_return_val != NULL) {
         return_vals[myid] = local_return_val;
         //cancel any thread working in subsequent parts of the buffer
@@ -172,9 +154,8 @@ void *thread_memchr(void *vargp)
     }
     thread_time = PAPI_get_real_usec();
     thread_end_times[myid] = thread_time;
-    thread_warmedup_times[myid] = info.warmup_start_time;
-    PAPI_read(info.event_set, counters + (myid * 10));
-    if (sem_trywait(&active) < 0) {
+    PAPI_read(event_set, counters + (myid * 10));
+    if (atomic_fetch_sub(&active, 1) == 0) {
         sem_post(&done);
     }
     return NULL;

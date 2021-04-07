@@ -22,7 +22,7 @@
 #define END(z)
 
 # ifndef MEMCHR
-#  define MEMCHR	MEMCHR_IMPL
+#  define MEMCHR	memchr_avx2_warmup
 # endif
 
 # ifdef USE_AS_WMEMCHR
@@ -38,7 +38,7 @@
 # define VEC_SIZE 32
 
 	.text
-	.globl  MEMCHR_IMPL
+	.globl  memchr_avx2_warmup
 ENTRY (MEMCHR)
 	/* move 4th argument, the warmup length, to "safe" register
 	No need to touch 5th and 6th args as r8-9 aren't used */

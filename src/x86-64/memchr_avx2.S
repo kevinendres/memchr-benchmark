@@ -22,7 +22,7 @@
 #define END(z)
 
 # ifndef MEMCHR
-#  define MEMCHR	MEMCHR_IMPL
+#  define MEMCHR	memchr_avx2
 # endif
 
 # ifdef USE_AS_WMEMCHR
@@ -38,7 +38,7 @@
 # define VEC_SIZE 32
 
 	.text
-	.globl  MEMCHR_IMPL
+	.globl  memchr_avx2
 ENTRY (MEMCHR)
 # ifndef USE_AS_RAWMEMCHR
 	/* Check for zero length.  */
