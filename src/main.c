@@ -14,6 +14,7 @@
 #include <stdatomic.h>
 #include <semaphore.h>
 #include "memchr.h"
+#include "papi_events.h"
 
 #define FILL_CHAR 0x42
 #define SEARCH_CHAR 0x41
@@ -35,16 +36,18 @@ long long counters[401];
 atomic_int active;
 sem_t done;
 char *implem_arg;
+int event_category[10];
 func_ptr_t memchr_implem;
 
 int main (int argc, char **argv) {
     /* argument parsing */
-    size_t opt;
-    while((opt = getopt(argc, argv, "t:d:i:")) != -1) {
+    int opt;
+    while((opt = getopt(argc, argv, "t:d:i:p:")) != -1) {
         switch (opt) {
             case 't': num_threads = atol(optarg); break;
             case 'd': buffer_size = atol(optarg); break;
             case 'i': implem_arg = strdup(optarg); break;
+            case 'p': choose_event_category(optarg, event_category); break;
         }
     }
 
@@ -101,9 +104,9 @@ int main (int argc, char **argv) {
 
     //Papi timing printouts
     for (size_t i = 0; i < num_threads; ++i) {
-        printf("thread %ld,%d,%ld,%ld,%ld,%ld,%ld", i + 1, procid, papi_elapsed_time,
+        printf("thread %ld,%d,%ld,%ld,%ld,%ld", i + 1, procid, papi_elapsed_time,
                thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i],
-               thread_end_times[i] - thread_warmedup_times[i], end_time - thread_end_times[i]);
+               end_time - thread_end_times[i]);
         for (size_t j = i * 10; j < (i + 1) * 10; ++j) {
             printf(",%lld", counters[j]);
         }
@@ -117,21 +120,15 @@ int main (int argc, char **argv) {
 
 void *thread_memchr(void *vargp)
 {
+    //prepare PAPI events
     int event_set = PAPI_NULL;
     PAPI_thread_init(pthread_self);
     PAPI_create_eventset(&(event_set));
-    PAPI_add_event(event_set, PAPI_L1_DCM);
-    PAPI_add_event(event_set, PAPI_L1_ICM);
-    PAPI_add_event(event_set, PAPI_L2_DCM);
-    PAPI_add_event(event_set, PAPI_L2_ICM);
-    PAPI_add_event(event_set, PAPI_L1_TCM);
-    PAPI_add_event(event_set, PAPI_L2_TCM);
-    PAPI_add_event(event_set, PAPI_L3_TCM);
-    PAPI_add_event(event_set, PAPI_CA_SNP);
-    PAPI_add_event(event_set, PAPI_CA_SHR);
-    PAPI_add_event(event_set, PAPI_CA_CLN);
+    load_PAPI_events(&(event_set), event_category);
+
+    //local initializations; record start time
+    size_t myid = *((size_t *) vargp);
     size_t thread_time = PAPI_get_real_usec();
-    long myid = *((long *) vargp);
     thread_start_times[myid] = thread_time;
     size_t local_chunk_size;
     char *local_return_val;
@@ -142,7 +139,8 @@ void *thread_memchr(void *vargp)
     } else {
         local_chunk_size = chunk_size;
         }
-    thread_time = PAPI_get_real_usec();
+
+    //run memchr
     PAPI_start(event_set);
     local_return_val = memchr_implem(local_buffer, search_char, local_chunk_size);
     if (local_return_val != NULL) {
@@ -152,6 +150,8 @@ void *thread_memchr(void *vargp)
             pthread_cancel(tid[i]);
         }
     }
+
+    //process times/locks
     thread_time = PAPI_get_real_usec();
     thread_end_times[myid] = thread_time;
     PAPI_read(event_set, counters + (myid * 10));

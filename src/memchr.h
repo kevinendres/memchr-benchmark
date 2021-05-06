@@ -11,6 +11,7 @@ void *memchr_sse(void const *s, int c_in, size_t n);
 void *memchr_throughput_only(void const *s, int c_in, size_t n);
 
 typedef void (*thread_callback_t) (void *arg);
+
 void *memchr_avx2_warmup(void const *s, int c_in, size_t n, size_t warmup_length,  thread_callback_t fun,
                   void* arg);
 
