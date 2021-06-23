@@ -11,13 +11,13 @@ papi = dependency('papi')
 project_deps = [pthreads, papi]
 
 #compiler flages
-add_global_arguments('-march=native', '-Ofast', language : 'c')
+add_global_arguments('-march=native', language : 'c')
 avx512_flag =  ['-mavx512f']
 unroll_flags = ['-funroll-loops', '-fvariable-expansion-in-unroller']
 
 #subdirs
 subdir('src')
 
-memchr_bin = executable('memchr_test',
+memchr_bin = executable('memchr_benchmarking',
                         project_sources,
                         dependencies : project_deps)

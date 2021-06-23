@@ -1,3 +1,4 @@
+#ifdef __AVX512BW__
 #include <immintrin.h>
 #include <x86intrin.h>
 
@@ -28,3 +29,6 @@ void * memchr_avx512(void * buffer, char c, size_t length){
 			return buffer + i;
 	return NULL;
 }
+#endif
+
+typedef int no_avx512_triggers_pedantic_warning;

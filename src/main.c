@@ -42,12 +42,12 @@ func_ptr_t memchr_implem;
 int main (int argc, char **argv) {
     /* argument parsing */
     int opt;
-    while((opt = getopt(argc, argv, "t:d:i:p:")) != -1) {
+    while((opt = getopt(argc, argv, "t:d:i:e:")) != -1) {
         switch (opt) {
             case 't': num_threads = atol(optarg); break;
             case 'd': buffer_size = atol(optarg); break;
             case 'i': implem_arg = strdup(optarg); break;
-            case 'p': choose_event_category(optarg, event_category); break;
+            case 'e': choose_event_category(optarg, event_category); break;
         }
     }
 

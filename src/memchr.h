@@ -15,7 +15,6 @@ typedef void (*thread_callback_t) (void *arg);
 void *memchr_avx2_warmup(void const *s, int c_in, size_t n, size_t warmup_length,  thread_callback_t fun,
                   void* arg);
 
-
 typedef void* (*func_ptr_t)(void const*, int, size_t);
 func_ptr_t select_implementation(char *implem_arg)
 {
@@ -30,7 +29,12 @@ func_ptr_t select_implementation(char *implem_arg)
        ret_val = memchr_glibc;
     }
     else if (strcmp("avx512", implem_arg) == 0) {
+#ifdef __AVX512BW__
        ret_val = memchr_avx512;
+#else
+       ret_val = memchr_avx2;
+       printf("No AVX512 support. Falling back to AVX2.\n");
+#endif
     }
     else if (strcmp("simple", implem_arg) == 0) {
        ret_val = memchr_simple;
