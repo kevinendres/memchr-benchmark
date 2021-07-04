@@ -1,6 +1,3 @@
-
-//Spawns multiple threads, each calling memchr on different block of memory
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -19,7 +16,6 @@
 #define FILL_CHAR 0x42
 #define SEARCH_CHAR 0x41
 
-/* GLOBAL */
 char *return_val;
 char *buffer;
 char search_char;
@@ -40,36 +36,45 @@ int event_category[10];
 func_ptr_t memchr_implem;
 
 int main (int argc, char **argv) {
-    /* argument parsing */
-    int opt;
-    while((opt = getopt(argc, argv, "t:d:i:e:")) != -1) {
-        switch (opt) {
-            case 't': num_threads = atol(optarg); break;
-            case 'd': buffer_size = atol(optarg); break;
-            case 'i': implem_arg = strdup(optarg); break;
-            case 'e': choose_event_category(optarg, event_category); break;
-        }
-    }
-
-    memchr_implem = select_implementation(implem_arg);
-
-    //inits/decs
-    final_thread = num_threads - 1;
-    buffer = (char*) aligned_alloc(64, buffer_size);
     char fill_char = FILL_CHAR;
     search_char = SEARCH_CHAR;
     size_t papi_elapsed_time;
     size_t start_time, end_time;
     pthread_attr_t detach_attr;
     int procid = getpid();
+    size_t iterations;
+    char filename[76];
+
+    int opt;
+    while((opt = getopt(argc, argv, "t:b:m:i:e:")) != -1) {
+        switch (opt) {
+            case 't': num_threads = atol(optarg); break;
+            case 'b': buffer_size = atol(optarg); break;
+            case 'm': implem_arg = strdup(optarg); break;
+            case 'i': iterations = atol(optarg); break;
+            case 'e': choose_event_category(optarg, event_category); break;
+        }
+    }
+
+    buffer = (char*) aligned_alloc(128, buffer_size);
+    final_thread = num_threads - 1;
+    memchr_implem = select_implementation(implem_arg);
+
+    time_t epoch_time = time(NULL);
+    struct tm *local_time = localtime(&epoch_time);
+    sprintf(filename, "%d-%d-%d_%d:%d:%d.csv", local_time->tm_year + 1900, local_time->tm_mon + 1, local_time->tm_mday, \
+        local_time->tm_hour, local_time->tm_min, local_time->tm_sec);
+    FILE *output_file = fopen(filename, "w+");
+    if (!output_file) {
+        printf("Couldn't open output file\n");
+        exit(1);
+    }
 
     //thread related inits
     long myid[num_threads];
     chunk_size = buffer_size / num_threads;    //each thread does chunk_size work, except final thread
     pthread_attr_init(&detach_attr);
     pthread_attr_setdetachstate(&detach_attr, PTHREAD_CREATE_DETACHED);
-    atomic_init(&active, num_threads - 1);
-    sem_init(&done, 0, 0);
 
     //fill memory, set last byte to search_char
     memset(buffer, fill_char, buffer_size);
@@ -80,39 +85,45 @@ int main (int argc, char **argv) {
     PAPI_library_init(PAPI_VER_CURRENT);
     start_time = PAPI_get_real_usec();
 
-    //threading
-    for (size_t i = 0; i < num_threads; i++) {
-        myid[i] = i;
-        pthread_create(&tid[i], &detach_attr, thread_memchr, &myid[i]);
-    }
-
-    //sync
-    sem_wait(&done);
-    //look for first search hit from memchr
-    for (size_t i = 0; i < num_threads; i++) {
-        if (return_vals[i] != NULL) {
-            return_val = return_vals[i];
-            break;
+    for (size_t i = 0; i < iterations; ++i) {
+        printf("i %zu\t iterations %zu", i, iterations);
+        atomic_init(&active, num_threads - 1);
+        sem_init(&done, 0, 0);
+        for (size_t i = 0; i < num_threads; i++) {
+            myid[i] = i;
+            pthread_create(&tid[i], &detach_attr, thread_memchr, &myid[i]);
         }
-    }
-    end_time = PAPI_get_real_usec();
-    _mm_lfence();
 
-    /* computer times */
-    papi_elapsed_time = end_time - start_time;
-    printf("main,%d,%ld\n", procid, papi_elapsed_time);
+        sem_wait(&done);
 
-    //Papi timing printouts
-    for (size_t i = 0; i < num_threads; ++i) {
-        printf("thread %ld,%d,%ld,%ld,%ld,%ld", i + 1, procid, papi_elapsed_time,
-               thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i],
-               end_time - thread_end_times[i]);
-        for (size_t j = i * 10; j < (i + 1) * 10; ++j) {
-            printf(",%lld", counters[j]);
+        //look for first search hit from memchr
+        for (size_t i = 0; i < num_threads; i++) {
+            if (return_vals[i] != NULL) {
+                return_val = return_vals[i];
+                break;
+            }
         }
-        printf("\n");
+        end_time = PAPI_get_real_usec();
+        _mm_lfence();
+
+        papi_elapsed_time = end_time - start_time;
+        printf("main,%d,%ld\n", procid, papi_elapsed_time);
+
+        //Papi timing printouts
+        for (size_t i = 0; i < num_threads; ++i) {
+            fprintf(output_file, "thread %ld,%d,%ld,%ld,%ld,%ld", i + 1, procid, papi_elapsed_time,
+                thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i],
+                end_time - thread_end_times[i]);
+            for (size_t j = i * 10; j < (i + 1) * 10; ++j) {
+                fprintf(output_file, ",%lld", counters[j]);
+            }
+            fprintf(output_file, "\n");
+        }
+        printf("finished writing to file\n");
     }
 
+
+    fclose(output_file);
     sem_destroy(&done);
     free(buffer);
     exit(0);
@@ -126,7 +137,6 @@ void *thread_memchr(void *vargp)
     PAPI_create_eventset(&(event_set));
     load_PAPI_events(&(event_set), event_category);
 
-    //local initializations; record start time
     size_t myid = *((size_t *) vargp);
     size_t thread_time = PAPI_get_real_usec();
     thread_start_times[myid] = thread_time;
@@ -140,18 +150,15 @@ void *thread_memchr(void *vargp)
         local_chunk_size = chunk_size;
         }
 
-    //run memchr
     PAPI_start(event_set);
     local_return_val = memchr_implem(local_buffer, search_char, local_chunk_size);
     if (local_return_val != NULL) {
         return_vals[myid] = local_return_val;
-        //cancel any thread working in subsequent parts of the buffer
         for (size_t i = myid + 1; i < num_threads; i++) {
             pthread_cancel(tid[i]);
         }
     }
 
-    //process times/locks
     thread_time = PAPI_get_real_usec();
     thread_end_times[myid] = thread_time;
     PAPI_read(event_set, counters + (myid * 10));
