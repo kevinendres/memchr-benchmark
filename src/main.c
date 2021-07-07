@@ -48,7 +48,11 @@ int main (int argc, char **argv) {
 
     parse(argc, argv);
 
-    buffer = (char*) aligned_alloc(128, buffer_size);
+    buffer = (char*) aligned_alloc(64, buffer_size);
+    if (buffer == NULL) {
+        perror("aligned_alloc");
+        exit(EXIT_FAILURE);
+    }
     final_thread = num_threads - 1;
     memchr_implem = select_implementation(implem_arg);
 
@@ -57,9 +61,9 @@ int main (int argc, char **argv) {
     sprintf(filename, "%d-%d-%d_%d:%d:%d.csv", local_time->tm_year + 1900, local_time->tm_mon + 1, local_time->tm_mday, \
         local_time->tm_hour, local_time->tm_min, local_time->tm_sec);
     FILE *output_file = fopen(filename, "w+");
-    if (!output_file) {
-        printf("Couldn't open output file\n");
-        exit(1);
+    if (output_file == NULL) {
+        perror("file open");
+        exit(EXIT_FAILURE);
     }
 
     //thread related inits
@@ -113,10 +117,13 @@ int main (int argc, char **argv) {
     }
 
 
-    fclose(output_file);
+    if (fclose(output_file) != 0) {
+        perror("file close");
+        exit(EXIT_SUCCESS);
+    }
     sem_destroy(&done);
     free(buffer);
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
 void *thread_memchr(void *vargp)
@@ -174,7 +181,7 @@ void parse(int argc, char** argv)
     if (!(argc == 2 || argc == 11)) {
         printf("Please supply command line arguments\n");
         print_help_message();
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     int opt;
@@ -187,7 +194,7 @@ void parse(int argc, char** argv)
             case 'e': choose_event_category(optarg, event_category); break;
             case 'h':
             default: print_help_message();
-                exit(1);
+                exit(EXIT_FAILURE);
         }
     }
 }
