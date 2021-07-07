@@ -34,6 +34,8 @@ sem_t done;
 char *implem_arg;
 int event_category[10];
 func_ptr_t memchr_implem;
+size_t iterations;
+void parse(int, char**);
 
 int main (int argc, char **argv) {
     char fill_char = FILL_CHAR;
@@ -42,19 +44,9 @@ int main (int argc, char **argv) {
     size_t start_time, end_time;
     pthread_attr_t detach_attr;
     int procid = getpid();
-    size_t iterations;
     char filename[76];
 
-    int opt;
-    while((opt = getopt(argc, argv, "t:b:m:i:e:")) != -1) {
-        switch (opt) {
-            case 't': num_threads = atol(optarg); break;
-            case 'b': buffer_size = atol(optarg); break;
-            case 'm': implem_arg = strdup(optarg); break;
-            case 'i': iterations = atol(optarg); break;
-            case 'e': choose_event_category(optarg, event_category); break;
-        }
-    }
+    parse(argc, argv);
 
     buffer = (char*) aligned_alloc(128, buffer_size);
     final_thread = num_threads - 1;
@@ -85,8 +77,7 @@ int main (int argc, char **argv) {
     PAPI_library_init(PAPI_VER_CURRENT);
     start_time = PAPI_get_real_usec();
 
-    for (size_t i = 0; i < iterations; ++i) {
-        printf("i %zu\t iterations %zu", i, iterations);
+    for (size_t iteration = 0; iteration < iterations; ++iteration) {
         atomic_init(&active, num_threads - 1);
         sem_init(&done, 0, 0);
         for (size_t i = 0; i < num_threads; i++) {
@@ -111,7 +102,7 @@ int main (int argc, char **argv) {
 
         //Papi timing printouts
         for (size_t i = 0; i < num_threads; ++i) {
-            fprintf(output_file, "thread %ld,%d,%ld,%ld,%ld,%ld", i + 1, procid, papi_elapsed_time,
+            fprintf(output_file, "thread %ld,%zu,%ld,%ld,%ld,%ld", i + 1, iteration, papi_elapsed_time,
                 thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i],
                 end_time - thread_end_times[i]);
             for (size_t j = i * 10; j < (i + 1) * 10; ++j) {
@@ -119,7 +110,6 @@ int main (int argc, char **argv) {
             }
             fprintf(output_file, "\n");
         }
-        printf("finished writing to file\n");
     }
 
 
@@ -166,4 +156,38 @@ void *thread_memchr(void *vargp)
         sem_post(&done);
     }
     return NULL;
+}
+
+void print_help_message()
+{
+    printf("Memchr benchmarking.\n\nOptions:\n");
+    printf(" -t <threadcount>\t\tto spawn <threadcount> threads\n");
+    printf(" -b <buffersize>\t\tallocate a <buffersize> buffer to search\n");
+    printf(" -m <memchrimplementation>\tselect <memchrimplementation>\n");
+    printf(" -i <iterations>\t\trun benchmark <iterations> times\n");
+    printf(" -e <events>\t\t\tchoose PAPI hardware counter <events>\n");
+    printf(" -h\t\t\t\tdisplay this help\n");
+}
+
+void parse(int argc, char** argv)
+{
+    if (!(argc == 2 || argc == 11)) {
+        printf("Please supply command line arguments\n");
+        print_help_message();
+        exit(1);
+    }
+
+    int opt;
+    while((opt = getopt(argc, argv, "t:b:m:i:e:h")) != -1) {
+        switch (opt) {
+            case 't': num_threads = atol(optarg); break;
+            case 'b': buffer_size = atol(optarg); break;
+            case 'm': implem_arg = strdup(optarg); break;
+            case 'i': iterations = atol(optarg); break;
+            case 'e': choose_event_category(optarg, event_category); break;
+            case 'h':
+            default: print_help_message();
+                exit(1);
+        }
+    }
 }
