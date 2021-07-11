@@ -20,10 +20,18 @@ const int data_access_events[10] = {PAPI_LD_INS, PAPI_LST_INS, PAPI_MEM_WCY, PAP
 PAPI_REF_CYC, PAPI_RES_STL, PAPI_SR_INS, PAPI_STL_CCY, PAPI_STL_ICY};
 const int TLB_events[10] = {PAPI_TLB_DM, PAPI_TLB_IM};
 
+void PAPI_error(int PAPI_return)
+{
+    printf("PAPI error %d: %s\n", PAPI_return, PAPI_strerror(PAPI_return));
+    exit(EXIT_FAILURE);
+}
+
 void load_PAPI_events(int* event_set, int* event_category)
 {
     for (int i = 0; i < 10; ++i) {
-        PAPI_add_event(*event_set, event_category[i]);
+        if (PAPI_add_event(*event_set, event_category[i]) != PAPI_OK) {
+            //PAPI_error(11);
+        }
     }
 }
 
@@ -78,4 +86,5 @@ void choose_event_category(char* optarg, int* event_category)
         printf("PAPI event category \"%s\" unknown\n", optarg);
     }
 }
+
 #endif // __PAPI_EVENTS_H_

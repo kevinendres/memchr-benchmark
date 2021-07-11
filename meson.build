@@ -8,7 +8,8 @@ project_sources = []
 #libs
 pthreads = dependency('threads')
 papi = dependency('papi')
-project_deps = [pthreads, papi]
+libfyaml = dependency('libfyaml')
+project_deps = [pthreads, papi, libfyaml]
 
 #compiler flages
 add_global_arguments('-march=native', language : 'c')
