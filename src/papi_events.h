@@ -4,7 +4,14 @@
 #include <papi.h>
 #include <string.h>
 
-const int L1_events[10] = {PAPI_L1_DCM, PAPI_L1_ICM, PAPI_L1_LDM, PAPI_L1_STM, PAPI_L1_TCM};
+#define EVENT_TO_STR(EVENT) EXPAND(EVENT)
+#define EXPAND(EVENT) #EVENT
+#define L1_EVENTS PAPI_L1_DCM, PAPI_L1_ICM, PAPI_L1_LDM, PAPI_L1_STM, PAPI_L1_TCM
+#define L2_EVENTS
+#define L3_EVENTS
+
+
+const int L1_events[10] = {L1_EVENTS};
 const int L2_data_events[10] = {PAPI_L2_TCA, PAPI_L2_TCM, PAPI_L2_TCR, PAPI_L2_TCW, PAPI_L2_LDM, PAPI_L2_STM, \
 PAPI_L2_DCA, PAPI_L2_DCM, PAPI_L2_DCR, PAPI_L2_DCW};
 const int L2_instruction_events[10] = {PAPI_L2_TCA, PAPI_L2_TCM, PAPI_L2_TCR, PAPI_L2_TCW, PAPI_L2_LDM, \
@@ -84,6 +91,16 @@ void choose_event_category(char* optarg, int* event_category)
     }
     else{
         printf("PAPI event category \"%s\" unknown\n", optarg);
+    }
+}
+
+void get_printable_PAPI_events(char *event_category, char **printable_events)
+{
+    for (int i = 0; i < 10; ++i) {
+        printable_events[i] = EVENT_TO_STR(*event);
+    }
+    for (int i = 0; i < 10; ++i) {
+        printf("%s\n", printable_events[i]);
     }
 }
 

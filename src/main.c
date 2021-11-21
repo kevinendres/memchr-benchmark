@@ -20,10 +20,10 @@
 char *return_val;
 char *buffer;
 char search_char;
-size_t chunk_size;
+size_t per_thread_buffer_size;
 size_t num_threads;
 size_t final_thread;
-size_t buffer_size;
+size_t global_buffer_size;
 char *return_vals[41];
 size_t thread_start_times[41];
 size_t thread_warmedup_times[41];
@@ -34,8 +34,10 @@ atomic_int active;
 sem_t done;
 char implem_arg[25];
 int event_category[10];
+char *printable_events[10];
 func_ptr_t memchr_implem;
 size_t iterations;
+
 void parse(int, char**);
 void handle_error(const char*);
 void read_config();
@@ -50,34 +52,41 @@ int main (int argc, char **argv) {
 
     parse(argc, argv);
 
-    buffer = (char*) aligned_alloc(64, buffer_size);
+    /* allocate buffer */
+    buffer = (char*) aligned_alloc(64, global_buffer_size);
     if (buffer == NULL) {
         handle_error("aligned alloc");
     }
+
     final_thread = num_threads - 1;
     memchr_implem = select_implementation(implem_arg);
 
+    /* create file for writing results */
     time_t epoch_time = time(NULL);
     struct tm *local_time = localtime(&epoch_time);
-    sprintf(filename, "%d-%d-%d_%d:%d:%d.csv", local_time->tm_year + 1900, local_time->tm_mon + 1, local_time->tm_mday, \
-        local_time->tm_hour, local_time->tm_min, local_time->tm_sec);
+    sprintf(filename, "%d-%d-%d_%d:%d:%d.csv", local_time->tm_year + 1900, local_time->tm_mon + 1,
+            local_time->tm_mday, local_time->tm_hour, local_time->tm_min, local_time->tm_sec);
     FILE *output_file = fopen(filename, "w+");
     if (output_file == NULL) {
         handle_error("file open");
     }
 
-    long myid[num_threads];
-    chunk_size = buffer_size / num_threads;
+    /* prepare thread-related variables */
+    long thread_ids[num_threads];
+    per_thread_buffer_size = global_buffer_size / num_threads;
     pthread_attr_init(&detach_attr);
     pthread_attr_setdetachstate(&detach_attr, PTHREAD_CREATE_DETACHED);
 
-    memset(buffer, fill_char, buffer_size);
-    *(buffer + buffer_size - 1) = search_char;
+    /* fille buffer with junk except for last character */
+    memset(buffer, fill_char, global_buffer_size);
+    *(buffer + global_buffer_size - 1) = search_char;
 
+    /* start PAPI */
     if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT) {
         PAPI_error(1);
     }
 
+    /* main experiment loop */
     for (size_t iteration = 0; iteration < iterations; ++iteration) {
         _mm_lfence();
         atomic_init(&active, num_threads - 1);
@@ -87,8 +96,8 @@ int main (int argc, char **argv) {
 
         start_time = PAPI_get_real_usec();
         for (size_t i = 0; i < num_threads; i++) {
-            myid[i] = i;
-            if(pthread_create(&tid[i], &detach_attr, thread_memchr, &myid[i]) != 0) {
+            thread_ids[i] = i;
+            if(pthread_create(&tid[i], &detach_attr, thread_memchr, &thread_ids[i]) != 0) {
                 handle_error("phtread create");
             }
         }
@@ -109,6 +118,7 @@ int main (int argc, char **argv) {
 
         papi_elapsed_time = end_time - start_time;
 
+        /* write output to file per experiment iteration */
         for (size_t i = 0; i < num_threads; ++i) {
             fprintf(output_file, "thread %ld,%zu,%ld,%ld,%ld,%ld", i + 1, iteration, papi_elapsed_time,
                 thread_start_times[i] - start_time, thread_end_times[i] - thread_start_times[i],
@@ -142,35 +152,35 @@ void *thread_memchr(void *vargp)
     }
     load_PAPI_events(&(event_set), event_category);
 
-    size_t myid = *((size_t *) vargp);
-    size_t local_chunk_size;
+    size_t local_thread_id = *((size_t *) vargp);
+    size_t local_buffer_size;
     char *local_return_val;
-    char *local_buffer = buffer + myid * chunk_size;
+    char *local_buffer = buffer + local_thread_id * per_thread_buffer_size;
     if (pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL) != 0) {
         handle_error("pthread set cancel type");
     }
-    if (myid == final_thread) {
-        local_chunk_size = buffer_size - myid * chunk_size;
+    if (local_thread_id == final_thread) {
+        local_buffer_size = global_buffer_size - local_thread_id * per_thread_buffer_size;
     } else {
-        local_chunk_size = chunk_size;
+        local_buffer_size = per_thread_buffer_size;
         }
 
-    size_t thread_time = PAPI_get_real_usec();
-    thread_start_times[myid] = thread_time;
+    size_t thread_start_time = PAPI_get_real_usec();
     if (PAPI_start(event_set) != PAPI_OK) {
         PAPI_error(1);
     }
-    local_return_val = memchr_implem(local_buffer, search_char, local_chunk_size);
+    local_return_val = memchr_implem(local_buffer, search_char, local_buffer_size);
     if (local_return_val != NULL) {
-        return_vals[myid] = local_return_val;
-        for (size_t i = myid + 1; i < num_threads; i++) {
+        return_vals[local_thread_id] = local_return_val;
+        for (size_t i = local_thread_id + 1; i < num_threads; i++) {
             pthread_cancel(tid[i]);
         }
     }
 
-    thread_time = PAPI_get_real_usec();
-    thread_end_times[myid] = thread_time;
-    if (PAPI_read(event_set, counters + (myid * 10)) != PAPI_OK) {
+    size_t thread_end_time = PAPI_get_real_usec();
+    thread_start_times[local_thread_id] = thread_start_time;
+    thread_end_times[local_thread_id] = thread_end_time;
+    if (PAPI_read(event_set, counters + (local_thread_id * 10)) != PAPI_OK) {
         PAPI_error(1);
     }
     if (atomic_fetch_sub(&active, 1) == 0) {
@@ -203,7 +213,7 @@ void read_config()
                                   "/number_of_iterations %zu "
                                   "/buffer_size %zu "
                                   "/memchr_implementation %s "
-                                  "/PAPI_events %s", &num_threads, &iterations, &buffer_size,
+                                  "/PAPI_events %s", &num_threads, &iterations, &global_buffer_size,
                                   implem_arg, PAPI_event);
     if (count != 5) {
         handle_error("config scan");
@@ -224,7 +234,7 @@ void parse(int argc, char** argv)
         switch (opt) {
             case 'c': read_config(); break;
             case 't': num_threads = atol(optarg); break;
-            case 'b': buffer_size = atol(optarg); break;
+            case 'b': global_buffer_size = atol(optarg); break;
             case 'm': strcpy(implem_arg, optarg); break;
             case 'i': iterations = atol(optarg); break;
             case 'e': choose_event_category(optarg, event_category); break;
